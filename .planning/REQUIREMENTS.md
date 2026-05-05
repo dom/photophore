@@ -138,27 +138,71 @@ Explicitly excluded from Photophore — either by design forever, or as out-of-s
 | GUI / web frontend | Out of scope for v0.1; CLI-first. May be added in a future milestone but is not on the v0.1 roadmap. |
 | Multi-tenant gateway operation | Photophore is a single-node engine. Organizational gateway use is beyond v0.1's design center. |
 
+
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation by the roadmapper agent.
+Which phases cover which requirements. Updated by ROADMAP.md.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CHAN-01 through CHAN-06 | Phase 1 | Pending |
-| AUDIT-01 through AUDIT-08 | Phase 1 | Pending |
-| CLASS-01 through CLASS-06 | Phase 2 | Pending |
-| SHADOW-01 through SHADOW-06 | Phase 2 | Pending |
-| POLICY-01 through POLICY-03 | Phase 2 | Pending |
-| IDENT-01 through IDENT-03 | Phase 3 | Pending |
-| DISP-01 through DISP-06 | Phase 3 | Pending |
-| CLI-01 through CLI-07 | Phase 1 (channel/audit), Phase 2 (classify/policy preview), Phase 3 (dispatch) | Pending |
-| CONF-01 through CONF-07 | Phase 4 | Pending |
+| CHAN-01 | Phase 1 | Pending |
+| CHAN-02 | Phase 1 | Pending |
+| CHAN-03 | Phase 1 | Pending |
+| CHAN-04 | Phase 1 | Pending |
+| CHAN-05 | Phase 1 | Pending |
+| CHAN-06 | Phase 1 | Pending |
+| AUDIT-01 | Phase 1 | Pending |
+| AUDIT-02 | Phase 1 | Pending |
+| AUDIT-03 | Phase 1 | Pending |
+| AUDIT-04 | Phase 1 | Pending |
+| AUDIT-05 | Phase 1 | Pending |
+| AUDIT-06 | Phase 1 | Pending |
+| AUDIT-07 | Phase 1 | Pending |
+| AUDIT-08 | Phase 1 | Pending |
+| CLI-01 | Phase 1 | Pending |
+| CLI-02 | Phase 1 | Pending |
+| CLASS-01 | Phase 2 | Pending |
+| CLASS-02 | Phase 2 | Pending |
+| CLASS-03 | Phase 2 | Pending |
+| CLASS-04 | Phase 2 | Pending |
+| CLASS-05 | Phase 2 | Pending |
+| CLASS-06 | Phase 2 | Pending |
+| SHADOW-01 | Phase 2 | Pending |
+| SHADOW-02 | Phase 2 | Pending |
+| SHADOW-03 | Phase 2 | Pending |
+| SHADOW-04 | Phase 2 | Pending |
+| SHADOW-05 | Phase 2 | Pending |
+| SHADOW-06 | Phase 2 | Pending |
+| POLICY-01 | Phase 2 | Pending |
+| POLICY-02 | Phase 2 | Pending |
+| POLICY-03 | Phase 2 | Pending |
+| CLI-04 | Phase 2 | Pending |
+| CLI-05 | Phase 2 | Pending |
+| IDENT-01 | Phase 3 | Pending |
+| IDENT-02 | Phase 3 | Pending |
+| IDENT-03 | Phase 3 | Pending |
+| DISP-01 | Phase 3 | Pending |
+| DISP-02 | Phase 3 | Pending |
+| DISP-03 | Phase 3 | Pending |
+| DISP-04 | Phase 3 | Pending |
+| DISP-05 | Phase 3 | Pending |
+| DISP-06 | Phase 3 | Pending |
+| CLI-03 | Phase 3 | Pending |
+| CONF-01 | Phase 4 | Pending |
+| CONF-02 | Phase 4 | Pending |
+| CONF-03 | Phase 4 | Pending |
+| CONF-04 | Phase 4 | Pending |
+| CONF-05 | Phase 4 | Pending |
+| CONF-06 | Phase 4 | Pending |
+| CONF-07 | Phase 4 | Pending |
+| CLI-06 | Phase 4 | Pending |
+| CLI-07 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 47 total
-- Mapped to phases: 47 (preliminary; roadmapper will refine)
+- v1 requirements: 52 total
+- Mapped to phases: 52
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-05*
-*Last updated: 2026-05-05 after initialization*
+*Last updated: 2026-05-05 after roadmap creation*
