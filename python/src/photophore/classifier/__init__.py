@@ -5,13 +5,15 @@ Priority: Explicit Tag (CLASS-02) > Path Rule (CLASS-03) > Rule-based Classifier
 from __future__ import annotations
 
 from ._default import default_tier
+from ._engine import classify
+from ._rules import load_rules
 from ._tags import parse_explicit_tag
 from ._types import Classification, PathRule, PathRules, Reason
 
-# _engine.classify and _rules.load_rules are added by Tasks 2 + 3.
-
 __all__ = [
+    "classify",
     "default_tier",
+    "load_rules",
     "parse_explicit_tag",
     "Classification",
     "PathRule",
