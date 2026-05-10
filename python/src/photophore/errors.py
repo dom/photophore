@@ -23,6 +23,8 @@ __all__ = [
     "ChannelStateError",
     "UnauditedChannelError",
     "KeystoreUnavailableError",
+    "RulesConfigError",
+    "ClassifierError",
 ]
 
 
@@ -77,4 +79,18 @@ class UnauditedChannelError(PhotophoreError):
     """
 
     def __init__(self, message: str, *, code: str = "UNAUDITED_CHANNEL") -> None:
+        super().__init__(message, code=code)
+
+
+class RulesConfigError(PhotophoreError):
+    """Raised when path-rules YAML is malformed OR missing the mandatory `**` -> local catch-all (D-08, CLASS-03)."""
+
+    def __init__(self, message: str, *, code: str = "RULES_CONFIG_INVALID") -> None:
+        super().__init__(message, code=code)
+
+
+class ClassifierError(PhotophoreError):
+    """Raised when content cannot be decoded or classification otherwise fails."""
+
+    def __init__(self, message: str, *, code: str = "CLASSIFIER_ERROR") -> None:
         super().__init__(message, code=code)
