@@ -1,0 +1,23 @@
+{
+  "thermocline": "0.3.1",
+  "type": "task",
+  "envelope_id": "01J0EX0INJECT0INJECT0INJECT0",
+  "issued_at": "2026-05-09T00:00:00Z",
+  "issuer": "alice",
+  "channel_id": "00000000-0000-4000-8000-000000000001",
+  "task": {
+    "type": "noop",
+    "instruction": "noop",
+    "parameters": {}
+  },
+  "context": [],
+  "output_contract": {
+    "type": "structured",
+    "schema": {"type": "object"}
+  },
+  "result_policy": {
+    "persist_to_shared": ["EVERYTHING"],
+    "return_only": [],
+    "strip_before_persist": []
+  }
+}
