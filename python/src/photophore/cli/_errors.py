@@ -20,6 +20,7 @@ import click
 __all__ = [
     "ConfigError",
     "AuditIntegrityError",
+    "ClassifierError",
     "KeystoreError",
 ]
 
@@ -39,6 +40,13 @@ class AuditIntegrityError(click.ClickException):
     exit_code = 3
 
 
+class ClassifierError(click.ClickException):
+    """Exit code 4 — classifier error (content unreadable, encoding failure, etc.)."""
+
+    exit_code = 4
+
+
 class KeystoreError(click.ClickException):
     """Exit code 5 — keystore unavailable or channel not found."""
+
     exit_code = 5
