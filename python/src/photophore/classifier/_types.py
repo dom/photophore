@@ -47,9 +47,16 @@ class PathRule:
 class PathRules(Protocol):
     """Protocol for the loaded path-rules container produced by load_rules().
     Implementation lives in _rules.py as `_LoadedPathRules` (duck-typed).
+
+    W7: `rules` is a read-only property in the Protocol so that frozen dataclass
+    implementations satisfy it without a `# type: ignore[return-value]` escape hatch.
+    Per Phase 1 LEARNINGS.md: explicit Protocol over type:ignore.
     """
 
-    rules: tuple[PathRule, ...]
+    @property
+    def rules(self) -> tuple[PathRule, ...]:
+        """Ordered sequence of path rules (first-match-wins per D-10)."""
+        ...
 
     def match(self, path: str) -> PathRule | None:
         """First-match-wins per D-10. Returns None if no rule matches (only possible if catch-all
