@@ -21,9 +21,10 @@ from pathlib import Path
 
 import click
 
-from ._errors import AuditIntegrityError, ConfigError, KeystoreError
+from ._errors import AuditIntegrityError, ClassifierError, ConfigError, KeystoreError
 from .audit_cmds import audit
 from .channel_cmds import channel
+from .classify_cmds import classify_cmd as classify
 
 __all__ = ["photophore"]
 
@@ -65,3 +66,4 @@ def photophore(ctx: click.Context, output_json: bool, data_dir: str) -> None:
 
 photophore.add_command(audit)
 photophore.add_command(channel)
+photophore.add_command(classify, name="classify")
