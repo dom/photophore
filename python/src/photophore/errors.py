@@ -25,6 +25,8 @@ __all__ = [
     "KeystoreUnavailableError",
     "RulesConfigError",
     "ClassifierError",
+    "ShadowIrreversibilityError",
+    "PolicyError",
 ]
 
 
@@ -93,4 +95,23 @@ class ClassifierError(PhotophoreError):
     """Raised when content cannot be decoded or classification otherwise fails."""
 
     def __init__(self, message: str, *, code: str = "CLASSIFIER_ERROR") -> None:
+        super().__init__(message, code=code)
+
+
+class ShadowIrreversibilityError(PhotophoreError):
+    """Hard fail when shadow abstraction leaks source content substrings (SHADOW-04).
+
+    Raised by ``irreversibility_test()`` when the abstraction string contains any
+    substring of the source content that is >= ``_IRREVERSIBILITY_MIN_SUBSTR_LEN``
+    characters long (8 chars per 02-RESEARCH §7 finding). Dispatch MUST abort.
+    """
+
+    def __init__(self, message: str, *, code: str = "SHADOW_IRREVERSIBILITY_FAILED") -> None:
+        super().__init__(message, code=code)
+
+
+class PolicyError(PhotophoreError):
+    """Base class for result-policy authoring failures (POLICY-01..03)."""
+
+    def __init__(self, message: str, *, code: str = "POLICY_ERROR") -> None:
         super().__init__(message, code=code)
