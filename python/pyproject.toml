@@ -42,6 +42,12 @@ dev = [
     "ruff>=0.5",
     "pip-audit",
     "pytest-asyncio>=0.23",
+    # Plan 03-03 Task 2: tiny in-process Flask forges for negative E2E tests
+    # (forged-receipt + poisoned-audit). Forges in seamount/ already require
+    # Flask in their own venvs; this adds it to the photophore test venv so
+    # multiprocessing.Process targets that build a small Flask app for negative
+    # tests have it available.
+    "flask>=3.0",
 ]
 
 [project.scripts]
