@@ -73,6 +73,11 @@ class AuditEventType:
     CHANNEL_CEILING_LOWERED: str = "channel.ceiling_lowered"
     CHANNEL_CEILING_RAISED: str = "channel.ceiling_raised"
 
+    # Channel lifecycle additions for Phase 3 D-01 fetched-pubkey TOFU registration.
+    # Logged by `photophore channel new --fetch-pubkey-from URL` between the keystore
+    # write and the channels.db upsert (D-07 atomic three-step).
+    CHANNEL_PUBKEY_REGISTERED: str = "channel.pubkey_registered"
+
     # Dispatch lifecycle (Phase 3)
     DISPATCH_PRE: str = "dispatch.pre"
     DISPATCH_RECEIPT: str = "dispatch.receipt"
@@ -90,6 +95,7 @@ KNOWN_EVENT_TYPES: frozenset[str] = frozenset({
     AuditEventType.CHANNEL_CLOSED,
     AuditEventType.CHANNEL_CEILING_LOWERED,
     AuditEventType.CHANNEL_CEILING_RAISED,
+    AuditEventType.CHANNEL_PUBKEY_REGISTERED,
     AuditEventType.DISPATCH_PRE,
     AuditEventType.DISPATCH_RECEIPT,
     AuditEventType.DISPATCH_FAILED,

@@ -23,11 +23,15 @@ from pathlib import Path
 from typing import Any
 
 import click
+# AST-lint allow-list carve-out: this is the single sovereign-side fetch of a
+# remote forge's public key — CONTEXT D-01. The lint allow-list entry is keyed
+# on the file path `photophore/cli/channel_cmds.py`.
+import httpx
 
 from ..audit._store import AuditLog
 from ..channels._store import ChannelStore, _channel_to_dict
 from ..channels._types import Channel
-from ..core import ChannelId, ChannelState
+from ..core import AuditEventType, ChannelId, ChannelState
 from ..errors import ChannelStateError, KeystoreUnavailableError
 from ._errors import KeystoreError as CliKeystoreError
 from ._format import emit_human_channel, emit_json_document
@@ -74,6 +78,9 @@ def channel() -> None:
               type=click.Choice(["brine", "pgp", "x509", "none"]),
               help="Key scheme for signing (default: brine).")
 @click.option("--description", default="", help="Human-readable description.")
+@click.option("--fetch-pubkey-from", "fetch_pubkey_from", default=None,
+              help="Forge HTTP base URL; GET /pubkey is queried and the returned key is "
+                   "registered under remote_node via TOFU (CONTEXT D-01).")
 @click.pass_context
 def new(
     ctx: click.Context,
@@ -81,11 +88,64 @@ def new(
     ceiling: str,
     key_scheme: str,
     description: str,
+    fetch_pubkey_from: str | None,
 ) -> None:
-    """Create a new channel (state=PROPOSED). (CLI-01)"""
+    """Create a new channel (state=PROPOSED). (CLI-01)
+
+    When --fetch-pubkey-from URL is provided, GET <URL>/pubkey is fetched and the
+    returned ed25519 verify key is registered via BrineProvider.register_public_key.
+    The D-07 atomic three-step ordering is preserved:
+      1. keystore (BrineProvider.register_public_key)
+      2. audit (channel.pubkey_registered event)
+      3. channels.db.upsert (handled by store.create below)
+    """
     output_json = ctx.obj["json"]
-    _, store = _open_store(ctx)
+    audit_log, store = _open_store(ctx)
+    pubkey_hex: str | None = None
+    if fetch_pubkey_from is not None:
+        # CONTEXT D-01: the single sovereign-side HTTP call outside dispatch.
+        # AST lint exempts this file by path.
+        try:
+            resp = httpx.get(f"{fetch_pubkey_from.rstrip('/')}/pubkey", timeout=10.0)
+            resp.raise_for_status()
+            data = resp.json()
+            pubkey_hex = str(data["pubkey"])
+        except httpx.HTTPError as exc:
+            raise click.ClickException(
+                f"failed to fetch /pubkey from {fetch_pubkey_from!r}: {exc}"
+            ) from exc
+        except (KeyError, ValueError) as exc:
+            raise click.ClickException(
+                f"malformed /pubkey response from {fetch_pubkey_from!r}: {exc}"
+            ) from exc
+        try:
+            pubkey_bytes = bytes.fromhex(pubkey_hex)
+        except ValueError as exc:
+            raise click.ClickException(
+                f"pubkey from {fetch_pubkey_from!r} is not hex: {exc}"
+            ) from exc
+        # D-07 STEP 1: keystore (BrineProvider.register_public_key writes the
+        # public-key entry under the _PUBKEY_PREFIX namespace).
+        from thermocline.identity import BrineProvider
+        try:
+            provider = BrineProvider(keyring_service="thermocline.brine")
+        except KeystoreUnavailableError as exc:
+            raise CliKeystoreError(str(exc)) from exc
+        provider.register_public_key(identity=remote_node, verify_key=pubkey_bytes)
+        # D-07 STEP 2: audit BEFORE channels.db upsert (CHAN-05 ordering).
+        audit_log.append(
+            event_type=AuditEventType.CHANNEL_PUBKEY_REGISTERED,
+            channel_id=None,
+            envelope_id=None,
+            payload={
+                "identity": remote_node,
+                "pubkey_hex": pubkey_hex,
+                "source_url": fetch_pubkey_from,
+            },
+        )
     try:
+        # D-07 STEP 3: channels.db upsert (handled inside store.create — which also
+        # emits the channel.created audit event per Phase 2 D-07).
         ch = store.create(
             remote_node=remote_node,
             ceiling=ceiling,
@@ -93,6 +153,7 @@ def new(
             local_node=_get_local_node(),
             creator_identity=_get_creator_identity(),
             description=description,
+            remote_pubkey_hex=pubkey_hex,
         )
     except KeystoreUnavailableError as exc:
         raise CliKeystoreError(str(exc)) from exc
