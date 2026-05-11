@@ -121,4 +121,12 @@ class PolicyError(PhotophoreError):
 
 # Late re-exports — DispatchError + DispatchSubcode live in photophore.dispatch._errors
 # but are surfaced here so callers can do `from photophore.errors import DispatchError`.
-from .dispatch._errors import DispatchError, DispatchSubcode  # noqa: E402, F401
+#
+# Lazy via module-level __getattr__ (PEP 562) so that importing photophore.errors at
+# package-init time does NOT eagerly load photophore.dispatch (which imports audit,
+# channels, etc. — and audit imports back into photophore.errors → circular).
+def __getattr__(name: str):  # noqa: ANN202
+    if name in ("DispatchError", "DispatchSubcode"):
+        from .dispatch._errors import DispatchError, DispatchSubcode
+        return {"DispatchError": DispatchError, "DispatchSubcode": DispatchSubcode}[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
