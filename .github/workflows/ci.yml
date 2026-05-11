@@ -1,0 +1,80 @@
+name: photophore CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: photophore
+      - uses: actions/checkout@v4
+        with:
+          repository: graywhale/thermocline
+          path: thermocline
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install thermocline + photophore
+        working-directory: photophore/python
+        run: |
+          pip install -e ../../thermocline/thermocline/python/
+          pip install -e .[dev]
+      - name: Network-isolation lint (DISP-05)
+        working-directory: photophore
+        run: |
+          python tools/ast_lint_network_isolation.py \
+            python/src/ \
+            ../thermocline/thermocline/python/src/
+      - name: Pytest (non-integration)
+        working-directory: photophore/python
+        run: pytest tests/ --ignore=tests/integration -q
+
+  integration-and-conformance:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        forge: [pi-forge, describe-forge]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: photophore
+      - uses: actions/checkout@v4
+        with:
+          repository: graywhale/thermocline
+          path: thermocline
+      - uses: actions/checkout@v4
+        with:
+          repository: graywhale/seamount
+          path: seamount
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install thermocline + photophore + forge + forge_conformance
+        run: |
+          pip install -e thermocline/thermocline/python/
+          pip install -e photophore/python/
+          pip install -e seamount/${{ matrix.forge }}/
+          pip install -e seamount/conformance/
+          pip install flask
+      - name: Run photophore integration tests
+        working-directory: photophore/python
+        run: pytest tests/integration/ -xvs
+      - name: Init + serve ${{ matrix.forge }}
+        run: |
+          MODULE=${{ matrix.forge == 'pi-forge' && 'pi_forge' || 'describe_forge' }}
+          python -m "$MODULE" init --keyring-service seamount.ci-test
+          python -m "$MODULE" serve --keyring-service seamount.ci-test --port 5100 &
+          sleep 3
+      - name: Run forge_conformance against ${{ matrix.forge }}
+        run: |
+          python -m forge_conformance \
+            --target http://127.0.0.1:5100 \
+            --role ${{ matrix.forge }} \
+            --output json
