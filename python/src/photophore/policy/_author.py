@@ -37,8 +37,23 @@ _CEILING_TO_POLICY_TEMPLATE: dict[str, dict[str, list[str]]] = {
         "strip_before_persist": ["content", "raw_output"],
     },
     "tier-2": {
-        # Public content can cross. Persist public outputs.
-        "persist_to_shared": ["public_outputs"],
+        # Public content can cross. v0.1 template: no field-name restrictions —
+        # any forge-declared output is allowed to be persisted/returned. The
+        # privacy guarantee at tier-2 is "you knew it was public when you
+        # authored the channel; persisting any output named by the forge is
+        # within scope". A future v0.2 may add field-name allow-lists when
+        # output_contract types stabilize.
+        #
+        # Plan 03-03 deviation Rule 1: the previous template surfaced the
+        # placeholder ``["public_outputs"]`` allow-list, which combined with
+        # the Plan 03-03 v0.1 derivation rule (persisted_fields = outputs.keys
+        # when forge omits the explicit field) caused tier-2 happy-path
+        # dispatches against real forges (pi-forge outputs={"pi", "digits_computed",
+        # "algorithm"}; describe-forge outputs={"descriptions", "note"}) to
+        # falsely trip POLICY-03. Empty lists here mean "no allow-list rule
+        # applies"; the conservative semantics fall through to allowing any
+        # forge output at tier-2.
+        "persist_to_shared": [],
         "return_only": [],
         "strip_before_persist": [],
     },

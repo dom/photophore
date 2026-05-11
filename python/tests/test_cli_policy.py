@@ -148,7 +148,8 @@ class TestPolicyPreviewJsonMode:
     def test_preview_tier2_json(
         self, runner: CliRunner, data_dir: Path
     ) -> None:
-        """Tier-2 channel: persist_to_shared must be non-empty."""
+        """Tier-2 channel (Plan 03-03): permissive template — empty
+        persist_to_shared/return_only/strip_before_persist."""
         channel_id = _create_channel(runner, data_dir, "tier-2")
         result = runner.invoke(
             photophore,
@@ -166,7 +167,9 @@ class TestPolicyPreviewJsonMode:
         )
         assert result.exit_code == 0, f"preview failed: {result.output}"
         data = json.loads(result.output)
-        assert len(data["authored_policy"]["persist_to_shared"]) > 0
+        assert data["authored_policy"]["persist_to_shared"] == []
+        assert data["authored_policy"]["return_only"] == []
+        assert data["authored_policy"]["strip_before_persist"] == []
 
     def test_preview_injected_policy_ignored_visible_in_json(
         self, runner: CliRunner, data_dir: Path
