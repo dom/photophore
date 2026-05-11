@@ -25,6 +25,7 @@ from ._errors import AuditIntegrityError, ClassifierError, ConfigError, Keystore
 from .audit_cmds import audit
 from .channel_cmds import channel
 from .classify_cmds import classify_cmd as classify
+from .dispatch_cmds import dispatch_command
 from .policy_cmds import policy
 
 __all__ = ["photophore"]
@@ -69,3 +70,4 @@ photophore.add_command(audit)
 photophore.add_command(channel)
 photophore.add_command(classify, name="classify")
 photophore.add_command(policy)
+photophore.add_command(dispatch_command, name="dispatch")
