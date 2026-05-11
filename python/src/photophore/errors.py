@@ -27,6 +27,8 @@ __all__ = [
     "ClassifierError",
     "ShadowIrreversibilityError",
     "PolicyError",
+    "DispatchError",
+    "DispatchSubcode",
 ]
 
 
@@ -115,3 +117,8 @@ class PolicyError(PhotophoreError):
 
     def __init__(self, message: str, *, code: str = "POLICY_ERROR") -> None:
         super().__init__(message, code=code)
+
+
+# Late re-exports — DispatchError + DispatchSubcode live in photophore.dispatch._errors
+# but are surfaced here so callers can do `from photophore.errors import DispatchError`.
+from .dispatch._errors import DispatchError, DispatchSubcode  # noqa: E402, F401
