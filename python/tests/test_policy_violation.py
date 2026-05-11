@@ -95,30 +95,22 @@ class TestCompareResultViolation:
         }
         assert compare_result_against_policy(compliant_result, policy) is True
 
-    def test_tier2_violation_persisted_outside_allowed(self) -> None:
-        """tier-2: persist_to_shared=["public_outputs"]; persisting 'private_data' violates."""
+    def test_tier2_compliant_any_persisted_fields(self) -> None:
+        """Plan 03-03 tier-2 template is permissive: persist_to_shared=[];
+        any forge-declared persisted fields are allowed."""
         channel = _make_channel("tier-2")
         draft = _load_draft("task-draft.json")
         policy = author(channel, draft)
-        assert "public_outputs" in policy.persist_to_shared
+        # tier-2 v0.1 (Plan 03-03): empty allow-list = permissive.
+        assert policy.persist_to_shared == []
 
-        violating_result = {
-            "persisted_fields": ["private_data"],  # not in persist_to_shared
-            "returned_fields": [],
-        }
-        assert compare_result_against_policy(violating_result, policy) is False
-
-    def test_tier2_compliant_allowed_persist(self) -> None:
-        """tier-2: persisting 'public_outputs' is compliant."""
-        channel = _make_channel("tier-2")
-        draft = _load_draft("task-draft.json")
-        policy = author(channel, draft)
-
-        compliant_result = {
-            "persisted_fields": ["public_outputs"],
-            "returned_fields": [],
-        }
-        assert compare_result_against_policy(compliant_result, policy) is True
+        # Both arbitrary field names and the legacy "public_outputs" placeholder
+        # are compliant; the policy declines to enumerate at this tier.
+        for persisted in (["arbitrary_field"], ["pi", "digits_computed"], []):
+            result = {"persisted_fields": persisted, "returned_fields": []}
+            assert compare_result_against_policy(result, policy) is True, (
+                f"tier-2 v0.1 should accept {persisted!r}"
+            )
 
 
 class TestPolicy03InjectedPolicyFixture:
@@ -126,27 +118,28 @@ class TestPolicy03InjectedPolicyFixture:
     build a violating result, assert False."""
 
     def test_injected_policy_vs_authored_policy(self) -> None:
-        """Full POLICY-03 negative fixture flow:
+        """Full POLICY-03 negative fixture flow (Plan 03-03 update):
         1. Load draft with injected overly-permissive policy.
-        2. Author the real policy from channel ceiling (tier-2).
+        2. Author the real policy from channel ceiling (tier-0 — the most
+           restrictive tier; tier-2's v0.1 template is permissive after
+           Plan 03-03's deviation).
         3. Verify authored policy != injected policy (POLICY-01).
-        4. Build a received_result that would satisfy the INJECTED (overly permissive) policy
+        4. Build a received_result that would satisfy the INJECTED policy
            but VIOLATES the AUTHORED (channel-derived) policy.
         5. Assert compare_result_against_policy returns False.
         """
         draft = _load_draft("task-draft-with-injected-policy.json")
         injected_policy = ResultPolicy(**draft["result_policy"])
 
-        # Tier-2 channel
-        channel = _make_channel("tier-2")
+        # Tier-0 channel — strict: strip_before_persist=["*"]; NOTHING may persist.
+        channel = _make_channel("tier-0")
         authored = author(channel, draft)
 
         # POLICY-01: authored != injected
         assert authored != injected_policy, "POLICY-01: authored policy must differ from injected"
 
-        # The injected policy permits persist_to_shared=["EVERYTHING"]:
-        # a forge that persists "EVERYTHING" would satisfy the injected policy
-        # but "EVERYTHING" is not in authored.persist_to_shared (it's ["public_outputs"]).
+        # Injected policy permits persist_to_shared=["EVERYTHING"]. Any non-empty
+        # persisted_fields would satisfy it. Tier-0 forbids ALL persistence.
         violating_result = {
             "persisted_fields": ["EVERYTHING"],
             "returned_fields": [],
@@ -154,5 +147,6 @@ class TestPolicy03InjectedPolicyFixture:
         # Satisfies injected: "EVERYTHING" in injected.persist_to_shared
         assert "EVERYTHING" in injected_policy.persist_to_shared
 
-        # Violates authored: "EVERYTHING" not in authored.persist_to_shared
+        # Violates authored tier-0: strip_before_persist=["*"] forbids any persistence.
+        assert "*" in authored.strip_before_persist
         assert compare_result_against_policy(violating_result, authored) is False

@@ -361,12 +361,32 @@ async def dispatch_async(
         )
 
     # ---- Step 8b: POLICY-03 closure ------------------------------------------
-    # Conservative v0.1 derivation: forge MUST surface persisted_fields and
-    # returned_fields in the response. If absent, treat as empty (forge wrote
-    # nothing) — that respects policy by construction.
+    # Plan 03-03 v0.1 derivation rule (closes 03-01's deferred decision):
+    #   * If the forge surfaces explicit ``persisted_fields`` / ``returned_fields``
+    #     at the result top level, use those values (honor what the forge
+    #     declared it did).
+    #   * Otherwise, derive both from ``result["outputs"].keys()``: the v0.1
+    #     reference forges (pi-forge, describe-forge) put everything they
+    #     wrote into ``outputs`` and the act of returning a result is a
+    #     persistence claim under the audit model. Forges that omit the
+    #     explicit fields get the conservative derivation — any output key
+    #     counts as both returned AND persisted.
+    #
+    # This rule is what makes tier-0 channels meaningfully refuse non-empty
+    # outputs (POLICY-03 closure: SC2 second half / Plan 03-03 Test 3).
+    if "persisted_fields" in result:
+        derived_persisted = list(result["persisted_fields"])
+    else:
+        outputs = result.get("outputs") or {}
+        derived_persisted = list(outputs.keys()) if isinstance(outputs, dict) else []
+    if "returned_fields" in result:
+        derived_returned = list(result["returned_fields"])
+    else:
+        outputs = result.get("outputs") or {}
+        derived_returned = list(outputs.keys()) if isinstance(outputs, dict) else []
     received_for_compare = {
-        "persisted_fields": list(result.get("persisted_fields", [])),
-        "returned_fields": list(result.get("returned_fields", [])),
+        "persisted_fields": derived_persisted,
+        "returned_fields": derived_returned,
     }
     complies = await policy_compare_async(received_for_compare, authored_policy)
     if not complies:
