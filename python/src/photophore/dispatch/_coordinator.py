@@ -230,19 +230,38 @@ async def dispatch_async(
 
     # ---- Step 6: sign the outgoing envelope (DISP-04 canonical-JSON input) ---
     try:
+        signer_identity = str(
+            task_draft.get("issuer")
+            or channel.local_node
+        )
+        # The wire contract (FORGE-01 / Plan 03-02 SP-3.2-01):
+        # 1. Pre-fill ALL dispatch_signature fields EXCEPT the sig payload
+        #    (``sig`` / ``bytes_hex``). Both the sovereign and the forge
+        #    canonicalize an envelope whose dispatch_signature block has the
+        #    sig fields ABSENT.
+        # 2. Sign the canonical bytes of that pre-filled envelope.
+        # 3. Attach the sig under ``bytes_hex`` (Phase 3 wire) — the forge
+        #    deep-copies and pops ``sig``+``bytes_hex`` on its verify side.
+        signing_input = dict(task_draft)
+        sig_block_for_sign = dict(signing_input.get("dispatch_signature") or {})
+        sig_block_for_sign["scheme"] = "brine"
+        sig_block_for_sign["key_scheme"] = "brine"
+        sig_block_for_sign.setdefault("signer_identity", signer_identity)
+        # Remove any pre-existing sig material; the signer MUST NOT sign
+        # over a partially-filled sig field.
+        sig_block_for_sign.pop("sig", None)
+        sig_block_for_sign.pop("bytes_hex", None)
+        signing_input["dispatch_signature"] = sig_block_for_sign
+
         # canonicalize() is called here to materialize the canonical bytes that
         # WILL be signed by BrineProvider (which itself canonicalizes internally).
         # The double call is intentional — this module's signing-path use of
         # canonicalize is the DISP-04-visible call that the test spies on, and
         # the BrineProvider's internal call is the on-the-wire signing input
         # contract. Both produce the same bytes (RFC 8785 is deterministic).
-        _ = canonicalize(task_draft)
-        signer_identity = str(
-            task_draft.get("issuer")
-            or channel.local_node
-        )
+        _ = canonicalize(signing_input)
         signature: Signature = identity_provider.sign(
-            envelope=task_draft, signer_identity=signer_identity
+            envelope=signing_input, signer_identity=signer_identity
         )
     except Exception as exc:
         raise DispatchError(
@@ -255,16 +274,13 @@ async def dispatch_async(
         ) from exc
 
     # Attach the signature to the outgoing envelope (the forge expects it
-    # under dispatch_signature.bytes_hex per the spec wire shape).
-    signed_envelope = dict(task_draft)
-    sig_block = dict(signed_envelope.get("dispatch_signature") or {})
-    sig_block.update({
-        "scheme": signature.scheme.value,
-        "key_scheme": signature.scheme.value,
-        "signer_identity": signature.signer_identity,
-        "bytes_hex": signature.bytes_.hex(),
-    })
-    signed_envelope["dispatch_signature"] = sig_block
+    # under dispatch_signature.bytes_hex per the spec wire shape; the
+    # forge's verify path deep-copies and pops sig+bytes_hex before
+    # canonicalizing, which recovers the exact bytes signed above).
+    signed_envelope = dict(signing_input)
+    sig_block_signed = dict(sig_block_for_sign)
+    sig_block_signed["bytes_hex"] = signature.bytes_.hex()
+    signed_envelope["dispatch_signature"] = sig_block_signed
 
     # ---- Step 7: transport (DISP-05 single network call) ---------------------
     # send_async raises DispatchError directly with the right subcode + stage.
@@ -279,10 +295,14 @@ async def dispatch_async(
     # ---- Step 8a: verify the receipt signature (DISP-03 hard-fail gate) ------
     try:
         receipt_block = result.get("receipt_signature") or {}
-        bytes_hex = receipt_block.get("bytes_hex")
+        # Spec canonical field name is ``sig`` (per task_result.schema.json).
+        # Phase 3 Plan 03-01 wrote ``bytes_hex`` to mirror the dispatch_signature
+        # convention; Plan 03-03 Task 1 surfaced the wire mismatch against real
+        # forges that emit ``sig``. Accept either for compatibility.
+        bytes_hex = receipt_block.get("sig") or receipt_block.get("bytes_hex")
         if not bytes_hex:
             raise DispatchError(
-                "receipt_signature.bytes_hex missing",
+                "receipt_signature.sig/bytes_hex missing",
                 subcode=DispatchSubcode.RECEIPT_MALFORMED,
                 stage=8,
                 channel_id=channel_id,
@@ -297,9 +317,26 @@ async def dispatch_async(
         sig_obj = Signature(
             scheme=KeyScheme(str(scheme_str)),
             bytes_=bytes.fromhex(str(bytes_hex)),
-            signer_identity=str(receipt_block.get("signer_identity") or channel.remote_node),
+            signer_identity=str(
+                receipt_block.get("signer_identity")
+                or receipt_block.get("node_id")
+                or channel.remote_node
+            ),
         )
-        receipt = verifier.verify(envelope=result, signature=sig_obj)
+        # FORGE-01 / Plan 03-02 SP-3.2-01: the forge signed the result with
+        # receipt_signature.sig = None. To recover the same canonical bytes,
+        # deep-copy the result and pop both sig and bytes_hex from the
+        # receipt_signature block before passing to the verifier.
+        import copy
+        envelope_for_verify = copy.deepcopy(result)
+        rs_for_verify = envelope_for_verify.get("receipt_signature")
+        if isinstance(rs_for_verify, dict):
+            # Set sig to None (not pop) — the forge signs an envelope where
+            # the receipt_signature dict has sig=None as an explicit field,
+            # not where the field is absent. Mirrors envelope.py:_sign_receipt.
+            rs_for_verify["sig"] = None
+            rs_for_verify.pop("bytes_hex", None)
+        receipt = verifier.verify(envelope=envelope_for_verify, signature=sig_obj)
     except DispatchError:
         raise
     except Exception as exc:
