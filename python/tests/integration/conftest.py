@@ -243,7 +243,10 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
         # Teardown: SIGTERM, wait, KILL if necessary.
         proc.terminate()
         try:
-            proc.wait(timeout=5)
+            outs, _ = proc.communicate(timeout=5)
+            if os.environ.get("PHOTOPHORE_INTEGRATION_DEBUG"):
+                # Dump forge output on debug for diagnostics.
+                print(f"\n--- {role} subprocess output ---\n{outs}\n--- end ---")
         except subprocess.TimeoutExpired:
             proc.kill()
             try:
@@ -320,6 +323,37 @@ def _orphan_keystore_sweep() -> Generator[None, None, None]:
     # No-op: see docstring.
 
 
+@pytest.fixture(autouse=True)
+def _force_real_keyring_backend() -> Generator[None, None, None]:
+    """Force the integration test process to use the real platform keyring.
+
+    The photophore tests/conftest.py registers
+    ``tests.conftest._InMemoryKeyringBackend`` as a KeyringBackend subclass
+    with ``priority = 100`` — pytest discovery picks it up as the highest
+    priority backend, so ``keyring.get_keyring()`` returns it in any test
+    process that imports tests.conftest. That backend stores its state in
+    a per-process dict — when an integration test cross-registers a pubkey
+    here, the forge SUBPROCESS (running with real macOS Keychain) cannot
+    read it, breaking the E2E flow with a spurious SIGNATURE_INVALID.
+
+    This autouse fixture forces ``keyring.set_keyring`` to the real platform
+    backend (macOS Keychain / libsecret / Credential Manager) for the
+    duration of each integration test, and restores whatever was in place
+    before. macOS Keychain is then shared with the forge subprocess.
+    """
+    import keyring
+    import keyring.backends.macOS  # noqa: F401 — ensure backend module loaded
+    from keyring.backends import macOS as _macos_module  # noqa: PLC0415
+
+    previous = keyring.get_keyring()
+    real_backend = _macos_module.Keyring()
+    keyring.set_keyring(real_backend)
+    try:
+        yield
+    finally:
+        keyring.set_keyring(previous)
+
+
 # --- helpers re-exported for tests -----------------------------------------
 
 
@@ -349,3 +383,19 @@ def cross_register_keys(
     forge_side_provider.register_public_key(
         identity=sovereign_identity, verify_key=sovereign_pubkey
     )
+    # Defensive sanity probe: read the pubkey back and confirm it's there.
+    # Surfaces the in-memory-vs-real-keyring trap (see
+    # _force_real_keyring_backend autouse fixture) on stderr when active.
+    import os
+    if os.environ.get("PHOTOPHORE_INTEGRATION_DEBUG"):
+        from thermocline.identity import _PUBKEY_PREFIX
+        stored = keyring.get_password(
+            forge_namespace, _PUBKEY_PREFIX + sovereign_identity
+        )
+        backend = keyring.get_keyring()
+        print(
+            f"DEBUG cross-register: forge_namespace={forge_namespace!r}, "
+            f"sovereign_identity={sovereign_identity!r}, "
+            f"stored={stored[:16] if stored else None!r} "
+            f"backend={type(backend).__module__}.{type(backend).__name__}"
+        )
