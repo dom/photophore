@@ -1,3 +1,4 @@
+# CONF-03 invariant: audit chain integrity (single-byte tamper invalidates)
 """Hypothesis property test: any single-byte tamper invalidates verify_chain() (AUDIT-08).
 
 This test satisfies:
@@ -49,13 +50,16 @@ def _drop_update_trigger(conn: sqlite3.Connection) -> None:
 
 @given(
     # Use flatmap to generate (n_entries, tamper_index) as a correlated pair.
-    # Range 2..15 gives sum(1..14)=105 unique pairs, exceeding the 100-example target.
-    args=st.integers(min_value=2, max_value=15).flatmap(
+    # Range 2..20 gives sum(1..19)=190 unique pairs; combined with retried
+    # generation Hypothesis comfortably reaches 200 distinct draws (Pitfall 1
+    # — widened from max_value=15 in Phase 4 to avoid pair saturation at
+    # max_examples=200).
+    args=st.integers(min_value=2, max_value=20).flatmap(
         lambda n: st.integers(min_value=0, max_value=n - 1).map(lambda i: (n, i))
     ),
 )
 @settings(
-    max_examples=100,
+    max_examples=200,
     deadline=None,
     suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
@@ -95,13 +99,14 @@ def test_payload_tamper_invalidates_chain(
 
 @given(
     # tamper_index >= 1 (chain head has no prev_hash to corrupt).
-    # Range 3..16 gives 2+3+...+13=104 unique pairs, exceeding the 100-example target.
-    args=st.integers(min_value=3, max_value=16).flatmap(
+    # Range 3..22 gives 2+3+...+21=230 unique pairs, exceeding the 200-example
+    # target with headroom (Pitfall 1 — widened from max_value=16 in Phase 4).
+    args=st.integers(min_value=3, max_value=22).flatmap(
         lambda n: st.integers(min_value=1, max_value=n - 1).map(lambda i: (n, i))
     ),
 )
 @settings(
-    max_examples=100,
+    max_examples=200,
     deadline=None,
     suppress_health_check=[HealthCheck.function_scoped_fixture],
 )

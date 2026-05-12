@@ -1,10 +1,11 @@
+# CONF-03 invariant: classifier default fallthrough → LOCAL
 """Hypothesis property tests for the default_tier() invariant (CLASS-06, CONF-03).
 
 Tests:
 1. Any content with no explicit tag classifies as LOCAL (may hit classifier rule or default).
 2. Innocuous content with no credential/PII shape hits classifier:default exactly.
 
-Run with @settings(max_examples=100, deadline=None) to satisfy CONF-03 forward-coverage.
+Run with @settings(max_examples=200, deadline=None) to satisfy CONF-03 forward-coverage.
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from photophore.core import Tier
 
 
 @given(content=st.binary(min_size=0, max_size=10_000))
-@settings(max_examples=100, deadline=None)
+@settings(max_examples=200, deadline=None)
 def test_unmatched_content_classifies_as_local(content: bytes) -> None:
     """Any content with no explicit tag classifies as LOCAL via either classifier rule or default.
 
@@ -29,7 +30,7 @@ def test_unmatched_content_classifies_as_local(content: bytes) -> None:
 
 
 @given(content=st.text(alphabet="abc ", min_size=0, max_size=100).map(str.encode))
-@settings(max_examples=100, deadline=None)
+@settings(max_examples=200, deadline=None)
 def test_innocuous_content_hits_default_branch(content: bytes) -> None:
     """Content with no credential/PII shape and no explicit tag hits classifier:default.
 
