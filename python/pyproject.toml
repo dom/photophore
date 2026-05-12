@@ -90,3 +90,10 @@ select = ["E", "F", "B", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "at_surface(name): mark test as exercising a specific AT-* threat-model surface",
+    "documents_only: marker for documents-only AT-* tests (no live runtime assertions)",
+    "integration: marker for tests that spawn subprocess fixtures or hit network",
+    "asyncio: marker for asyncio tests",
+    "keystore: marker for tests that require the platform keystore",
+]
