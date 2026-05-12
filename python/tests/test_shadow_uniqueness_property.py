@@ -1,3 +1,4 @@
+# CONF-03 invariant: shadow ID uniqueness per dispatch
 """Hypothesis property test for shadow_id uniqueness (SHADOW-02, SHADOW-06, AT-A2).
 
 Required structure (B3 inner-loop invariant):
@@ -19,7 +20,7 @@ from photophore.shadow import ContentType, generate
     content=st.binary(min_size=8, max_size=200),
     content_type=st.sampled_from(list(ContentType)),
 )
-@settings(max_examples=100, deadline=None)
+@settings(max_examples=200, deadline=None)
 def test_shadow_id_uniqueness(content: bytes, content_type: ContentType) -> None:
     """100 calls with IDENTICAL (content, content_type) inputs produce 100 distinct shadow_ids.
 
