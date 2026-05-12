@@ -692,6 +692,22 @@ trust level before a channel opens, with cryptographic commitment on both sides.
 
 ---
 
+## Architecture Decision Records
+
+### Photophore-specific
+- [ADR-0001: Trust-store separation from audit log](docs/adr/ADR-0001-trust-store-separation-from-audit-log.md)
+- [ADR-0002: No shadow caching](docs/adr/ADR-0002-no-shadow-caching.md)
+
+### Inherited from `thermocline-py`
+- [ADR-0001: Python 3.11 as primary language](../thermocline/docs/adr/ADR-0001-python-3-11-as-primary-language.md)
+- [ADR-0003: Single canonical JSON path](../thermocline/docs/adr/ADR-0003-single-canonical-json-path.md)
+- [ADR-0004: BLAKE3 with `algo_version` chain](../thermocline/docs/adr/ADR-0004-blake3-with-algo-version.md)
+- [ADR-0005: No in-process key material](../thermocline/docs/adr/ADR-0005-no-in-process-key-material.md)
+
+See [docs/adr/index.md](docs/adr/index.md) for status + dates.
+
+---
+
 ## Changelog
 
 ### 0.3.0
