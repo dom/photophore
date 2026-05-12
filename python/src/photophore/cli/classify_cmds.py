@@ -25,6 +25,7 @@ import click
 
 from ..classifier import Classification, PathRules, classify, load_rules
 from ..errors import RulesConfigError
+from ._audit_decorator import audit_cli_invocation
 from ._errors import ClassifierError, ConfigError
 from ._format import emit_json_document, emit_json_lines
 
@@ -70,6 +71,7 @@ def _walk_dir(
 
 
 @click.command("classify")
+@audit_cli_invocation("classify")
 @click.argument("path", type=click.Path(exists=True, path_type=Path))
 @click.option("--rules", "rules_arg", default=None, help="Path to rules.yaml (overrides default).")
 @click.pass_context

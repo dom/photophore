@@ -17,6 +17,7 @@ from ..audit import AuditLog
 from ..channels import ChannelStore
 from ..core import ChannelId
 from ..policy import author
+from ._audit_decorator import audit_cli_invocation
 from ._errors import KeystoreError
 from ._format import emit_json_document
 
@@ -29,6 +30,7 @@ def policy() -> None:
 
 
 @policy.command("preview")
+@audit_cli_invocation("policy.preview")
 @click.option(
     "--channel",
     "channel_id",
