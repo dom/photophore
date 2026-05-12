@@ -33,6 +33,7 @@ from ..channels._store import ChannelStore, _channel_to_dict
 from ..channels._types import Channel
 from ..core import AuditEventType, ChannelId, ChannelState
 from ..errors import ChannelStateError, KeystoreUnavailableError
+from ._audit_decorator import audit_cli_invocation
 from ._errors import KeystoreError as CliKeystoreError
 from ._format import emit_human_channel, emit_json_document
 
@@ -70,6 +71,7 @@ def channel() -> None:
 
 
 @channel.command("new")
+@audit_cli_invocation("channel.new")
 @click.option("--remote-node", required=True, help="Remote node identity.")
 @click.option("--ceiling", default="tier-1",
               type=click.Choice(["tier-0", "tier-1", "tier-2"]),
@@ -165,6 +167,7 @@ def new(
 
 
 @channel.command("list")
+@audit_cli_invocation("channel.list")
 @click.pass_context
 def list_channels(ctx: click.Context) -> None:
     """List all channels. (CLI-01 / CHAN-06)"""
@@ -184,6 +187,7 @@ def list_channels(ctx: click.Context) -> None:
 
 
 @channel.command("show")
+@audit_cli_invocation("channel.show")
 @click.argument("channel_id")
 @click.pass_context
 def show(ctx: click.Context, channel_id: str) -> None:
@@ -201,6 +205,7 @@ def show(ctx: click.Context, channel_id: str) -> None:
 
 
 @channel.command("open")
+@audit_cli_invocation("channel.open")
 @click.argument("channel_id")
 @click.pass_context
 def open_(ctx: click.Context, channel_id: str) -> None:
@@ -220,6 +225,7 @@ def open_(ctx: click.Context, channel_id: str) -> None:
 
 
 @channel.command("suspend")
+@audit_cli_invocation("channel.suspend")
 @click.argument("channel_id")
 @click.pass_context
 def suspend(ctx: click.Context, channel_id: str) -> None:
@@ -239,6 +245,7 @@ def suspend(ctx: click.Context, channel_id: str) -> None:
 
 
 @channel.command("close")
+@audit_cli_invocation("channel.close")
 @click.argument("channel_id")
 @click.pass_context
 def close(ctx: click.Context, channel_id: str) -> None:
@@ -258,6 +265,7 @@ def close(ctx: click.Context, channel_id: str) -> None:
 
 
 @channel.command("set-ceiling")
+@audit_cli_invocation("channel.set-ceiling")
 @click.argument("channel_id")
 @click.argument("new_ceiling", type=click.Choice(["tier-0", "tier-1", "tier-2"]))
 @click.pass_context

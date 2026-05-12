@@ -38,7 +38,18 @@ _RETRYABLE: frozenset[DispatchSubcode] = frozenset({
 
 
 class DispatchError(PhotophoreError):
-    """Raised by photophore.dispatch.dispatch_async on any 9-step failure (D-03)."""
+    """Raised by photophore.dispatch.dispatch_async on any 9-step failure (D-03).
+
+    CLI-07 (Plan 04-01 / D-08) augmentation: when a classification or policy
+    failure causes the dispatch to block on a specific content block, the
+    coordinator MAY set ``blocked_block_path``, ``blocked_tier``, and
+    ``blocked_reason``. The CLI surfaces these as ``(tier=X, reason=Y)``
+    suffixes on the human-readable error message so users can diagnose
+    blocks without diving into the audit log.
+
+    These fields are optional and default to None for backward compatibility
+    with Phase 3 call sites that did not populate them.
+    """
 
     def __init__(
         self,
@@ -49,6 +60,10 @@ class DispatchError(PhotophoreError):
         envelope_id: str | None = None,
         channel_id: str | None = None,
         audit_entry_hash: str | None = None,
+        # CLI-07 / D-08 — diagnostic fields for classification/policy blocks
+        blocked_block_path: str | None = None,
+        blocked_tier: str | None = None,
+        blocked_reason: str | None = None,
     ) -> None:
         super().__init__(message, code=str(subcode))
         self.subcode = subcode
@@ -57,6 +72,10 @@ class DispatchError(PhotophoreError):
         self.envelope_id = envelope_id
         self.channel_id = channel_id
         self.audit_entry_hash = audit_entry_hash
+        # CLI-07 (Plan 04-01 / D-08)
+        self.blocked_block_path = blocked_block_path
+        self.blocked_tier = blocked_tier
+        self.blocked_reason = blocked_reason
 
 
 __all__ = ["DispatchError", "DispatchSubcode"]

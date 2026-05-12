@@ -33,6 +33,46 @@ from ._types import AuditEntry, from_dict
 __all__ = ["AuditLog"]
 
 
+def _assert_no_sensitive(payload: dict[str, Any], path: str = "") -> None:
+    """Recursively walk an audit payload; raise AuditWriteError on any Sensitive[T] value.
+
+    CONF-06 / D-09 runtime guard: audit log is a permanent, append-only
+    record. Privacy-sensitive bytes MUST NEVER be persisted into the audit
+    payload — if a Sensitive[T] wrapper is found anywhere in the dict tree,
+    raise AuditWriteError(code=AUDIT_SENSITIVE_LEAK) instead of writing.
+
+    This is paired with the SensitiveFilter in photophore.logging (catches
+    Sensitive values in log records) and the ast_lint_no_print.py (catches
+    `print(` calls in library code) for defense-in-depth (see threat model
+    T-04-03 in 04-01-PLAN.md).
+    """
+    # Import lazily to avoid a hard dependency loop between audit and
+    # thermocline.sensitive at module-load time. thermocline-py is in our
+    # dependencies; the import only fires at audit-write time.
+    from thermocline.sensitive import Sensitive
+
+    for k, v in payload.items():
+        leaf_path = f"{path}.{k}" if path else str(k)
+        if isinstance(v, Sensitive):
+            raise AuditWriteError(
+                f"Sensitive[T] value in audit payload field {leaf_path!r}; "
+                f"audit log must not store privacy-sensitive content",
+                code="AUDIT_SENSITIVE_LEAK",
+            )
+        if isinstance(v, dict):
+            _assert_no_sensitive(v, leaf_path)
+        elif isinstance(v, list):
+            for i, item in enumerate(v):
+                if isinstance(item, Sensitive):
+                    raise AuditWriteError(
+                        f"Sensitive[T] value in audit payload at {leaf_path}[{i}]; "
+                        f"audit log must not store privacy-sensitive content",
+                        code="AUDIT_SENSITIVE_LEAK",
+                    )
+                if isinstance(item, dict):
+                    _assert_no_sensitive(item, f"{leaf_path}[{i}]")
+
+
 class AuditLog:
     """Append-only, cryptographically chained audit log backed by SQLite.
 
@@ -84,6 +124,12 @@ class AuditLog:
                 f"add it to KNOWN_EVENT_TYPES in photophore.core",
                 code="AUDIT_WRITE_FAILED",
             )
+        # CONF-06 / D-09 runtime guard: audit payload MUST NOT carry
+        # Sensitive[T] values. Reject the write at the boundary; the caller
+        # is responsible for stripping or hashing sensitive fields before
+        # passing them to append().
+        if payload:
+            _assert_no_sensitive(payload)
         ts = timestamp or (
             datetime.now(tz=timezone.utc)
             .isoformat(timespec="milliseconds")

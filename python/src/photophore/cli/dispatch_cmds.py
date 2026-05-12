@@ -22,11 +22,13 @@ import click
 from ..audit import AuditLog
 from ..channels import ChannelStore
 from ..dispatch import DispatchError, dispatch_async
+from ._audit_decorator import audit_cli_invocation
 
 __all__ = ["dispatch_command"]
 
 
 @click.command("dispatch")
+@audit_cli_invocation("dispatch")
 @click.option(
     "--channel", "channel_id", required=True,
     help="Channel id (UUIDv4) to dispatch through.",
@@ -90,9 +92,21 @@ def dispatch_command(
                 f" audit entry: {exc.audit_entry_hash}."
                 if exc.audit_entry_hash else ""
             )
+            # CLI-07 / D-08: augment with (tier=X, reason=Y) when the
+            # dispatch was blocked on a specific content block (classification
+            # or policy failure). Optional fields default to None for
+            # backward compatibility.
+            tier_reason = ""
+            if exc.blocked_tier is not None and exc.blocked_reason is not None:
+                block_label = exc.blocked_block_path or "block"
+                tier_reason = (
+                    f" blocked block: {block_label} "
+                    f"(tier={exc.blocked_tier}, reason={exc.blocked_reason})."
+                )
             click.echo(
                 f"error: dispatch failed ({exc.subcode}) at step {exc.stage}: "
-                f"{exc}. retryable: {str(exc.retryable).lower()}.{audit_note}"
+                f"{exc}. retryable: {str(exc.retryable).lower()}."
+                f"{tier_reason}{audit_note}"
             )
         sys.exit(6)
 

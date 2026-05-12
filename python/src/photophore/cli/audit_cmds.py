@@ -20,6 +20,7 @@ from typing import Any
 import click
 
 from ..audit._store import AuditLog
+from ._audit_decorator import audit_cli_invocation
 from ._errors import AuditIntegrityError, KeystoreError
 from ._format import emit_human_audit_entry, emit_human_audit_header, emit_json_document, emit_json_lines
 
@@ -30,6 +31,7 @@ def audit() -> None:
 
 
 @audit.command("query")
+@audit_cli_invocation("audit.query")
 @click.option("--channel", "channel_id", default=None, help="Filter by channel ID.")
 @click.option("--envelope", "envelope_id", default=None, help="Filter by envelope ID.")
 @click.option("--since", default=None, help="Filter by timestamp >= (ISO 8601).")
@@ -88,6 +90,7 @@ def query(
 
 
 @audit.command("export")
+@audit_cli_invocation("audit.export")
 @click.pass_context
 def export(ctx: click.Context) -> None:
     """Export the full audit log.
@@ -111,6 +114,7 @@ def export(ctx: click.Context) -> None:
 
 
 @audit.command("verify")
+@audit_cli_invocation("audit.verify")
 @click.pass_context
 def verify(ctx: click.Context) -> None:
     """Verify audit log chain integrity (AUDIT-08).
