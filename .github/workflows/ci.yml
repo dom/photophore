@@ -31,6 +31,12 @@ jobs:
           python tools/ast_lint_network_isolation.py \
             python/src/ \
             ../thermocline/thermocline/python/src/
+      - name: Print lint (CONF-06)
+        working-directory: photophore
+        run: python tools/ast_lint_no_print.py python/src/
+      - name: AT coverage (photophore = AT-A*)
+        working-directory: photophore
+        run: python tools/at_coverage.py
       - name: Pytest (non-integration)
         working-directory: photophore/python
         run: pytest tests/ --ignore=tests/integration -q
