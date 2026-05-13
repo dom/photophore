@@ -74,16 +74,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Unlock macOS Keychain
-        # Forge subprocesses (spawned by tests/integration/conftest.py) hit
-        # /pubkey, which reads from keyring. On headless GH macOS runners the
-        # login keychain is locked by default; first cross-process keyring
-        # read blocks indefinitely on the unlock dialog. Unlock with the
-        # documented empty password.
+      - name: Provision CI keychain
+        # login.keychain on headless macOS runners enforces ACLs that block
+        # cross-process keyring reads even after unlock — the forge subprocess
+        # /pubkey handler hangs on an "allow access" dialog no human can
+        # dismiss. Create a fresh custom keychain (no ACL restrictions on
+        # entries written into it), set it as default, unlock it, and call
+        # set-key-partition-list to allow tool-based access without prompts.
         run: |
-          security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || \
-          security unlock-keychain -p "" login.keychain || true
-          security set-keychain-settings -lut 7200 "$HOME/Library/Keychains/login.keychain-db" || true
+          KC_PATH="${RUNNER_TEMP:-$HOME}/ci.keychain-db"
+          KC_PASS="cipass"
+          security create-keychain -p "$KC_PASS" "$KC_PATH"
+          security set-keychain-settings -lut 7200 "$KC_PATH"
+          security unlock-keychain -p "$KC_PASS" "$KC_PATH"
+          security list-keychains -d user -s "$KC_PATH" "$HOME/Library/Keychains/login.keychain-db"
+          security default-keychain -s "$KC_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,unsigned: -s -k "$KC_PASS" "$KC_PATH" 2>/dev/null || true
       - name: Install thermocline + photophore + forge + forge_conformance
         run: |
           pip install -e thermocline/thermocline/python/
