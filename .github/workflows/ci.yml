@@ -90,11 +90,16 @@ jobs:
           security list-keychains -d user -s "$KC_PATH" "$HOME/Library/Keychains/login.keychain-db"
           security default-keychain -s "$KC_PATH"
           security set-key-partition-list -S apple-tool:,apple:,unsigned: -s -k "$KC_PASS" "$KC_PATH" 2>/dev/null || true
-      - name: Install thermocline + photophore + forge + forge_conformance
+      - name: Install thermocline + photophore + both forges + forge_conformance
+        # Install both forges regardless of matrix.forge: photophore's
+        # integration tests parametrize per-test (test_e2e_pi_forge_happy.py
+        # vs test_e2e_describe_forge_happy.py) and pytest runs all of them in
+        # each shard. matrix.forge only gates the forge_conformance step below.
         run: |
           pip install -e thermocline/thermocline/python/
           pip install -e "photophore/python/[dev]"
-          pip install -e seamount/${{ matrix.forge }}/
+          pip install -e seamount/pi-forge/
+          pip install -e seamount/describe-forge/
           pip install -e seamount/conformance/
           pip install flask
       - name: Run photophore integration tests
