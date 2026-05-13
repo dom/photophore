@@ -46,6 +46,11 @@ def _forged_forge_app(port: int) -> None:
     valid task_result envelope (so transport/JSON layer is happy) but the
     receipt_signature.sig is "00" * 64 — known-invalid for any real key.
     """
+    # Stub socket.getfqdn — werkzeug's HTTPServer.server_bind calls it on
+    # the bound host and reverse-DNS of 127.0.0.1 hangs ~35s on macOS arm64
+    # GH runners. server_name isn't used by this fake forge.
+    import socket as _socket
+    _socket.getfqdn = lambda name="": name or "localhost"
     from flask import Flask, jsonify, request  # local import — child process
 
     app = Flask(__name__)
@@ -143,9 +148,10 @@ async def test_forged_receipt_rejected_no_audit_post(
     )
     proc.start()
     try:
-        # Wait for forge readiness (any HTTP response is fine).
+        # Wait for forge readiness (any HTTP response is fine). 60s budget
+        # accommodates cold macOS arm64 GH-runner starts; locally <1s.
         url = f"http://127.0.0.1:{port}"
-        deadline = time.monotonic() + 8.0
+        deadline = time.monotonic() + 60.0
         ready = False
         while time.monotonic() < deadline:
             if not proc.is_alive():
@@ -157,7 +163,7 @@ async def test_forged_receipt_rejected_no_audit_post(
                     break
             except Exception:  # noqa: BLE001
                 time.sleep(0.1)
-        assert ready, "forged-forge did not become ready in 8s"
+        assert ready, "forged-forge did not become ready in 60s"
 
         # Build sovereign-side state.
         audit_log = AuditLog(tmp_path / "audit.db")
