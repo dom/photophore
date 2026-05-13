@@ -15,7 +15,7 @@ jobs:
           path: photophore
       - uses: actions/checkout@v4
         with:
-          repository: graywhale/thermocline
+          repository: dom/thermocline
           path: thermocline
       - uses: actions/setup-python@v5
         with:
@@ -53,11 +53,11 @@ jobs:
           path: photophore
       - uses: actions/checkout@v4
         with:
-          repository: graywhale/thermocline
+          repository: dom/thermocline
           path: thermocline
       - uses: actions/checkout@v4
         with:
-          repository: graywhale/seamount
+          repository: dom/seamount
           path: seamount
       - uses: actions/setup-python@v5
         with:
