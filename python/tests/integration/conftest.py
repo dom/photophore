@@ -199,8 +199,9 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
         text=True,
     )
     url = f"http://127.0.0.1:{port}"
-    # Step 3: poll /pubkey for readiness.
-    deadline = time.monotonic() + 12.0
+    # Step 3: poll /pubkey for readiness. 30s budget accommodates cold macOS
+    # arm64 starts on GH runners; locally the forge is ready in <1s.
+    deadline = time.monotonic() + 30.0
     pubkey_hex: str | None = None
     while time.monotonic() < deadline:
         if proc.poll() is not None:

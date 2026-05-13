@@ -74,6 +74,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Unlock macOS Keychain
+        # Forge subprocesses (spawned by tests/integration/conftest.py) hit
+        # /pubkey, which reads from keyring. On headless GH macOS runners the
+        # login keychain is locked by default; first cross-process keyring
+        # read blocks indefinitely on the unlock dialog. Unlock with the
+        # documented empty password.
+        run: |
+          security unlock-keychain -p "" "$HOME/Library/Keychains/login.keychain-db" || \
+          security unlock-keychain -p "" login.keychain || true
+          security set-keychain-settings -lut 7200 "$HOME/Library/Keychains/login.keychain-db" || true
       - name: Install thermocline + photophore + forge + forge_conformance
         run: |
           pip install -e thermocline/thermocline/python/
@@ -84,14 +94,22 @@ jobs:
       - name: Run photophore integration tests
         working-directory: photophore/python
         run: pytest tests/integration/ -xvs
-      - name: Init + serve ${{ matrix.forge }}
+      - name: Init + serve + run forge_conformance against ${{ matrix.forge }}
+        # Combine spawn + harness in one shell step: GHA reaps backgrounded
+        # processes at step boundary. Trap-kill on exit.
         run: |
           MODULE=${{ matrix.forge == 'pi-forge' && 'pi_forge' || 'describe_forge' }}
           python -m "$MODULE" init --keyring-service seamount.ci-test
           python -m "$MODULE" serve --keyring-service seamount.ci-test --port 5100 &
-          sleep 3
-      - name: Run forge_conformance against ${{ matrix.forge }}
-        run: |
+          FORGE_PID=$!
+          trap "kill $FORGE_PID 2>/dev/null || true" EXIT
+          for _ in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:5100/pubkey >/dev/null; then
+              echo "forge ready (pid=$FORGE_PID)"
+              break
+            fi
+            sleep 0.5
+          done
           python -m forge_conformance \
             --target http://127.0.0.1:5100 \
             --role ${{ matrix.forge }} \
