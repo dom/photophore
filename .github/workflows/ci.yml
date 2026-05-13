@@ -52,7 +52,15 @@ jobs:
         run: pytest tests/ --ignore=tests/integration -q
 
   integration-and-conformance:
-    runs-on: macos-latest
+    # macos-13 (x86_64 Intel) instead of macos-latest (arm64): diagnostic
+    # experiment. macos-latest arm64 hangs `subprocess.Popen`-spawned Flask
+    # forge between "Debug mode: off" and "Running on http://"; shell-`&`-
+    # spawned forges on the same image work fine (see seamount conformance
+    # matrix). Same fixture code passes locally on Apple Silicon. If macos-13
+    # is green, we have a deployment fix while the shell-spawn refactor is
+    # planned; if still red, the issue is not arm64-specific and the fixture
+    # itself needs to be refactored to match the working shell-`&` pattern.
+    runs-on: macos-13
     strategy:
       fail-fast: false
       matrix:
