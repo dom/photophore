@@ -18,6 +18,7 @@ namespace with a fresh ``alice-node`` keypair, plus paired teardown.
 from __future__ import annotations
 
 import os
+import shlex
 import socket
 import subprocess
 import sys
@@ -179,15 +180,18 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
             f"stderr: {init_result.stderr}"
         )
 
-    # Step 2: spawn the server. Route stdout/stderr to a temp logfile rather
-    # than a PIPE — on macOS arm64 GH runners, an undrained PIPE buffer fills
-    # up as Flask logs per-request output, causing the forge process to block
-    # on write() and never finish handling /pubkey. A logfile sidesteps this
-    # while preserving the diagnostics path used by the error-reporting branch
-    # below.
+    # Step 2: spawn the server via `/bin/sh -c "exec ..."`. Direct Popen from
+    # pytest hangs Flask startup on macOS GH runners between "Debug mode: off"
+    # and "Running on http://" — pytest's parent process has signal-handler
+    # state (faulthandler, pytest-asyncio SIGINT, etc.) that werkzeug inherits
+    # across fork+exec and deadlocks in `signal.signal()` during run_simple().
+    # Interposing /bin/sh resets handlers to defaults before exec'ing python;
+    # `exec` then replaces the shell with python so proc.pid is the forge.
+    # Matches the working `python -m ... &` pattern used by seamount conformance.
     forge_log = forge_dir / f".forge-{uuid.uuid4().hex[:8]}.log"
-    proc = subprocess.Popen(
-        [
+    forge_cmd = " ".join(
+        shlex.quote(part)
+        for part in [
             str(venv_python),
             "-m",
             meta["module"],
@@ -196,17 +200,16 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
             test_ns,
             "--port",
             str(port),
-        ],
+        ]
+    )
+    proc = subprocess.Popen(
+        ["/bin/sh", "-c", f"exec {forge_cmd}"],
         cwd=str(forge_dir),
         env=env,
         stdout=forge_log.open("w"),
         stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL,
         text=True,
-        # Detach from pytest's process group so the forge child cannot be
-        # affected by signals, terminal-association, or process-group-scoped
-        # resources of the pytest parent. Matches the behavior of shell `&`
-        # backgrounding, which the seamount conformance jobs use successfully.
         start_new_session=True,
     )
     url = f"http://127.0.0.1:{port}"
