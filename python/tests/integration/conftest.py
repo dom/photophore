@@ -203,6 +203,11 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
         stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL,
         text=True,
+        # Detach from pytest's process group so the forge child cannot be
+        # affected by signals, terminal-association, or process-group-scoped
+        # resources of the pytest parent. Matches the behavior of shell `&`
+        # backgrounding, which the seamount conformance jobs use successfully.
+        start_new_session=True,
     )
     url = f"http://127.0.0.1:{port}"
     # Step 3: poll /pubkey for readiness. 30s budget accommodates cold macOS
