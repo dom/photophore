@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import socket
 import subprocess
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -32,7 +33,13 @@ import pytest
 from thermocline.identity import BrineProvider, Verifier
 
 
-_SEAMOUNT_ROOT = Path("/Users/dom/Projects/dom/seamount")
+_SUITE_ROOT = Path(
+    os.environ.get(
+        "THERMOCLINE_SUITE_ROOT",
+        str(Path.home() / "Projects" / "dom"),
+    )
+)
+_SEAMOUNT_ROOT = _SUITE_ROOT / "seamount"
 _FORGE_PATHS: dict[str, dict[str, str]] = {
     "pi-forge": {
         "dir": str(_SEAMOUNT_ROOT / "pi-forge"),
@@ -126,13 +133,14 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
     test_ns = f"{meta['namespace_prefix']}.test-{uuid.uuid4().hex[:8]}"
     port = _free_port()
     forge_dir = Path(meta["dir"])
+    # Prefer a per-forge .venv python (local dev convention from Plan 03-02);
+    # fall back to the current interpreter (CI environments install the forge
+    # into the runner's site-packages and have no per-forge venv).
     venv_python = forge_dir / ".venv" / "bin" / "python3"
     if not venv_python.exists():
         venv_python = forge_dir / ".venv" / "bin" / "python"
     if not venv_python.exists():
-        raise RuntimeError(
-            f"{role}: no .venv python at {venv_python}; was Plan 03-02 venv setup run?"
-        )
+        venv_python = Path(sys.executable)
     env = {**os.environ}
     # Force the forge subprocess to use the ephemeral namespace + identity.
     env[f"{meta['env_prefix']}_KEYRING_SERVICE"] = test_ns

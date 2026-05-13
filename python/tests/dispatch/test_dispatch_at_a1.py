@@ -4,12 +4,13 @@ AT-A1 ("channel impersonation") is rejected by the dispatch coordinator at step 
 when the envelope's declared key_scheme does not match the channel registry's
 record — before any audit-pre entry, signing, or transport occurs.
 
-Reference: /Users/dom/Projects/dom/thermocline/thermocline/conformance/invalid/
+Reference: <THERMOCLINE_SUITE_ROOT>/thermocline/thermocline/conformance/invalid/
 AT-A1-channel-impersonation.json (_phase_wired: 3).
 """
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -26,9 +27,19 @@ from photophore.core import ChannelId, ChannelState
 from photophore.dispatch import DispatchError, DispatchSubcode, dispatch_async
 
 
-_AT_A1_FIXTURE_PATH = Path(
-    "/Users/dom/Projects/dom/thermocline/thermocline/conformance/invalid/"
-    "AT-A1-channel-impersonation.json"
+_SUITE_ROOT = Path(
+    os.environ.get(
+        "THERMOCLINE_SUITE_ROOT",
+        str(Path.home() / "Projects" / "dom"),
+    )
+)
+_AT_A1_FIXTURE_PATH = (
+    _SUITE_ROOT
+    / "thermocline"
+    / "thermocline"
+    / "conformance"
+    / "invalid"
+    / "AT-A1-channel-impersonation.json"
 )
 
 

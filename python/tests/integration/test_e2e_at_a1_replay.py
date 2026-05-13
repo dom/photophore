@@ -1,7 +1,7 @@
 """AT-A1 fixture replay E2E test (Plan 03-03 Task 1).
 
 Loads the canonical AT-A1 fixture from
-``/Users/dom/Projects/dom/thermocline/thermocline/conformance/invalid/AT-A1-channel-impersonation.json``
+``<THERMOCLINE_SUITE_ROOT>/thermocline/thermocline/conformance/invalid/AT-A1-channel-impersonation.json``
 and replays it over **real HTTP** through a running pi-forge subprocess.
 
 Asserts:
@@ -37,13 +37,15 @@ from photophore.dispatch import DispatchError, DispatchSubcode, dispatch_async
 from tests.integration.conftest import ForgeHandle
 
 
-_AT_A1_FIXTURE_PATH = Path(
-    "/Users/dom/Projects/dom/thermocline/thermocline/conformance/invalid/"
-    "AT-A1-channel-impersonation.json"
+_SUITE_ROOT = Path(
+    os.environ.get(
+        "THERMOCLINE_SUITE_ROOT",
+        str(Path.home() / "Projects" / "dom"),
+    )
 )
-_MANIFEST_PATH = Path(
-    "/Users/dom/Projects/dom/thermocline/thermocline/conformance/MANIFEST.yaml"
-)
+_CONFORMANCE_ROOT = _SUITE_ROOT / "thermocline" / "thermocline" / "conformance"
+_AT_A1_FIXTURE_PATH = _CONFORMANCE_ROOT / "invalid" / "AT-A1-channel-impersonation.json"
+_MANIFEST_PATH = _CONFORMANCE_ROOT / "MANIFEST.yaml"
 
 
 def _seed_at_a1_channel(

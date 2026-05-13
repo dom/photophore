@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Cross-repo path resolution: tests + harness derive sibling-repo paths from
+# THERMOCLINE_SUITE_ROOT. ${{ github.workspace }} is the directory that contains
+# all sibling checkouts (photophore/, thermocline/, seamount/) for these jobs.
+env:
+  THERMOCLINE_SUITE_ROOT: ${{ github.workspace }}
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
@@ -71,7 +77,7 @@ jobs:
       - name: Install thermocline + photophore + forge + forge_conformance
         run: |
           pip install -e thermocline/thermocline/python/
-          pip install -e photophore/python/
+          pip install -e "photophore/python/[dev]"
           pip install -e seamount/${{ matrix.forge }}/
           pip install -e seamount/conformance/
           pip install flask
