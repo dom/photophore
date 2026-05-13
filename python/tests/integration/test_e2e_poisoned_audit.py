@@ -41,6 +41,11 @@ def _counter_forge_app(port: int, counter: Any) -> None:
     should NEVER be hit. If somehow dispatch reached transport, the test will
     detect it via the counter (not via a downstream error).
     """
+    # Stub socket.getfqdn — werkzeug's HTTPServer.server_bind calls it on
+    # the bound host and reverse-DNS of 127.0.0.1 hangs ~35s on macOS arm64
+    # GH runners. server_name isn't used by this fake forge.
+    import socket as _socket
+    _socket.getfqdn = lambda name="": name or "localhost"
     from flask import Flask, jsonify, request  # local import — child process
 
     app = Flask(__name__)
@@ -146,7 +151,8 @@ async def test_poisoned_audit_aborts_before_sign(
     proc.start()
     try:
         url = f"http://127.0.0.1:{port}"
-        deadline = time.monotonic() + 8.0
+        # 60s budget accommodates cold macOS arm64 GH-runner starts.
+        deadline = time.monotonic() + 60.0
         ready = False
         while time.monotonic() < deadline:
             if not proc.is_alive():
@@ -158,7 +164,7 @@ async def test_poisoned_audit_aborts_before_sign(
                     break
             except Exception:  # noqa: BLE001
                 time.sleep(0.1)
-        assert ready, "counter-forge did not become ready in 8s"
+        assert ready, "counter-forge did not become ready in 60s"
         # Health probe inc'd counter once — reset so the test's assertion is
         # crisp ("forge was never hit").
         with counter.get_lock():
