@@ -179,8 +179,13 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
             f"stderr: {init_result.stderr}"
         )
 
-    # Step 2: spawn the server. We pipe stdout/stderr so test diagnostics
-    # can inspect them on failure.
+    # Step 2: spawn the server. Route stdout/stderr to a temp logfile rather
+    # than a PIPE — on macOS arm64 GH runners, an undrained PIPE buffer fills
+    # up as Flask logs per-request output, causing the forge process to block
+    # on write() and never finish handling /pubkey. A logfile sidesteps this
+    # while preserving the diagnostics path used by the error-reporting branch
+    # below.
+    forge_log = forge_dir / f".forge-{uuid.uuid4().hex[:8]}.log"
     proc = subprocess.Popen(
         [
             str(venv_python),
@@ -194,8 +199,9 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
         ],
         cwd=str(forge_dir),
         env=env,
-        stdout=subprocess.PIPE,
+        stdout=forge_log.open("w"),
         stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
         text=True,
     )
     url = f"http://127.0.0.1:{port}"
@@ -203,16 +209,22 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
     # arm64 starts on GH runners; locally the forge is ready in <1s.
     deadline = time.monotonic() + 30.0
     pubkey_hex: str | None = None
+    def _read_forge_log() -> str:
+        try:
+            return forge_log.read_text()
+        except Exception:  # noqa: BLE001
+            return "<no log captured>"
+
     while time.monotonic() < deadline:
         if proc.poll() is not None:
-            out, _ = proc.communicate()
             # Best-effort keystore cleanup before raising.
             try:
                 keyring.delete_password(test_ns, meta["identity"])
             except Exception:  # noqa: BLE001
                 pass
             raise RuntimeError(
-                f"{role} died during startup; rc={proc.returncode}; output:\n{out}"
+                f"{role} died during startup; rc={proc.returncode}; output:\n"
+                f"{_read_forge_log()}"
             )
         try:
             resp = httpx.get(f"{url}/pubkey", timeout=1.0)
@@ -224,17 +236,16 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
     if pubkey_hex is None:
         proc.terminate()
         try:
-            out, _ = proc.communicate(timeout=2)
+            proc.wait(timeout=2)
         except subprocess.TimeoutExpired:
             proc.kill()
-            out = "<process killed>"
         try:
             keyring.delete_password(test_ns, meta["identity"])
         except Exception:  # noqa: BLE001
             pass
         raise RuntimeError(
-            f"{role} did not become ready within 12s on port {port}\n"
-            f"output: {out}"
+            f"{role} did not become ready within 30s on port {port}\n"
+            f"output: {_read_forge_log()}"
         )
     try:
         # Expose the test namespace via request.node.user_properties so
@@ -252,16 +263,21 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
         # Teardown: SIGTERM, wait, KILL if necessary.
         proc.terminate()
         try:
-            outs, _ = proc.communicate(timeout=5)
+            proc.wait(timeout=5)
             if os.environ.get("PHOTOPHORE_INTEGRATION_DEBUG"):
                 # Dump forge output on debug for diagnostics.
-                print(f"\n--- {role} subprocess output ---\n{outs}\n--- end ---")
+                print(f"\n--- {role} subprocess output ---\n{_read_forge_log()}\n--- end ---")
         except subprocess.TimeoutExpired:
             proc.kill()
             try:
                 proc.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 pass
+        # Best-effort delete of the per-spawn forge logfile.
+        try:
+            forge_log.unlink(missing_ok=True)
+        except Exception:  # noqa: BLE001
+            pass
         # Delete forge keypair from the ephemeral namespace.
         try:
             keyring.delete_password(test_ns, meta["identity"])
