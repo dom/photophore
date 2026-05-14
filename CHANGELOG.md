@@ -49,6 +49,18 @@ versioning per [SemVer](https://semver.org/spec/v2.0.0.html).
   pip-audit + AST lints + at_coverage + property_coverage + pytest),
   `Sensitive[T]` + print-lint + SensitiveFilter.
 
+### Spec dependencies
+
+- Requires **`thermocline-py` 0.3.1** for the SP-3.3-01..03 envelope-signature
+  invariants — see `thermocline/README.md` §"Identity Provider Interface"
+  §"Dispatch Signatures" + §"Receipt Signatures" and
+  `thermocline/CHANGELOG.md` §[0.3.1]. The dispatch coordinator implements
+  the matching pre-fill ordering (`dispatch_signature` non-`sig` fields filled
+  BEFORE canonicalization), `receipt_signature.sig=""` (empty string, not
+  removed) canonicalization on verify, and `sig`/`bytes_hex` tolerance.
+  Co-discovered with the forges during Phase 3 integration; promoted from
+  coordinator-internal to spec-level via CONFLICT-02 in Phase 4.
+
 ### Deferred to subsequent milestones
 
 - Job envelopes + per-step shadow generation (Photophore spec v0.2)
