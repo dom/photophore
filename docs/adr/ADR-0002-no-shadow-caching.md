@@ -19,7 +19,8 @@ risk the tier exists to prevent. AT-A2 and AT-C3 specifically test this.
 `secrets.token_bytes` (UUIDv4 over `os.urandom`) on every call. No caching layer
 exists at any level (function, module, process, IPC). The classifier_default
 property test plus the dispatch-integrated shadow uniqueness property test
-(Plan 04-01 Task 2) prove the invariant under N=200 generation cycles.
+(`tests/integration/test_property_dispatch_shadow_uniqueness.py`) prove the
+invariant under N=200 generation cycles.
 
 ## Consequences
 

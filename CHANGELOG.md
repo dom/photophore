@@ -57,9 +57,11 @@ versioning per [SemVer](https://semver.org/spec/v2.0.0.html).
   `thermocline/CHANGELOG.md` §[0.3.1]. The dispatch coordinator implements
   the matching pre-fill ordering (`dispatch_signature` non-`sig` fields filled
   BEFORE canonicalization), `receipt_signature.sig=""` (empty string, not
-  removed) canonicalization on verify, and `sig`/`bytes_hex` tolerance.
-  Co-discovered with the forges during Phase 3 integration; promoted from
-  coordinator-internal to spec-level via CONFLICT-02 in Phase 4.
+  removed) canonicalization on verify, and `sig`/`bytes_hex` tolerance. These
+  invariants were co-discovered while integrating the coordinator with the
+  reference forges, then promoted to spec-level after we confirmed any
+  third-party implementation would otherwise reverse-engineer the Python
+  coordinator to discover them.
 
 ### Deferred to subsequent milestones
 

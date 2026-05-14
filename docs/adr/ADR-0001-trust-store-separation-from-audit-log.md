@@ -31,11 +31,10 @@ etc.). The three stores share no backing technology and no namespace.
   (different threat models); a single attack class rarely defeats both.
 - ✓ Test `test_channels_separation.py` enforces the no-mixing rule at CI time.
 - ✗ Three stores = three points of operational concern (backup, migration, recovery).
-- ✗ Cross-store consistency is application-layer (atomic three-step pattern from Phase 2 D-07).
+- ✗ Cross-store consistency is application-layer (atomic three-step write pattern in the reference implementation).
 
 ## References
 
-- CHAN-04 in REQUIREMENTS.md
-- Phase 2 D-04 three-store model
+- CHAN-04 in `photophore/README.md`
 - `photophore/python/tests/test_channels_separation.py`
 - [AT-A5 negative test](../../python/tests/at_negative/test_at_a5_trust_store_tampering.py)
