@@ -24,8 +24,8 @@ from typing import Any
 
 import click
 # AST-lint allow-list carve-out: this is the single sovereign-side fetch of a
-# remote forge's public key — CONTEXT D-01. The lint allow-list entry is keyed
-# on the file path `photophore/cli/channel_cmds.py`.
+# remote forge's public key for TOFU pubkey registration. The lint allow-list
+# entry is keyed on the file path `photophore/cli/channel_cmds.py`.
 import httpx
 
 from ..audit._store import AuditLog
@@ -82,7 +82,7 @@ def channel() -> None:
 @click.option("--description", default="", help="Human-readable description.")
 @click.option("--fetch-pubkey-from", "fetch_pubkey_from", default=None,
               help="Forge HTTP base URL; GET /pubkey is queried and the returned key is "
-                   "registered under remote_node via TOFU (CONTEXT D-01).")
+                   "registered under remote_node via TOFU.")
 @click.pass_context
 def new(
     ctx: click.Context,
@@ -105,7 +105,7 @@ def new(
     audit_log, store = _open_store(ctx)
     pubkey_hex: str | None = None
     if fetch_pubkey_from is not None:
-        # CONTEXT D-01: the single sovereign-side HTTP call outside dispatch.
+        # The single sovereign-side HTTP call outside dispatch.
         # AST lint exempts this file by path.
         try:
             resp = httpx.get(f"{fetch_pubkey_from.rstrip('/')}/pubkey", timeout=10.0)
@@ -147,7 +147,7 @@ def new(
         )
     try:
         # D-07 STEP 3: channels.db upsert (handled inside store.create — which also
-        # emits the channel.created audit event per Phase 2 D-07).
+        # emits the channel.created audit event per D-07 ordering).
         ch = store.create(
             remote_node=remote_node,
             ceiling=ceiling,

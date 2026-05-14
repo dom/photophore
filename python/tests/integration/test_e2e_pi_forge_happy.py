@@ -1,7 +1,7 @@
-"""Photophore → pi-forge happy-path E2E test (Plan 03-03 Task 1).
+"""Photophore → pi-forge happy-path E2E test.
 
-Closes ROADMAP §"Phase 3 Success Criteria" SC1 (full 9-step round trip) and
-SC3 (pi-forge real brine round trip). Asserts:
+Closes ROADMAP SC1 (full 9-step round trip) and SC3 (pi-forge real brine
+round trip). Asserts:
     1. dispatch_async completes without raising.
     2. The DispatchOutcome contains a non-empty receipt_signature_hash.
     3. The audit log contains exactly 2 entries (pre-dispatch + receipt) for

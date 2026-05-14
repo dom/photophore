@@ -1,4 +1,4 @@
-"""AT-A1 fixture replay E2E test (Plan 03-03 Task 1).
+"""AT-A1 fixture replay E2E test.
 
 Loads the canonical AT-A1 fixture from
 ``<THERMOCLINE_SUITE_ROOT>/thermocline/thermocline/conformance/invalid/AT-A1-channel-impersonation.json``
@@ -12,8 +12,7 @@ Asserts:
     4. The manifest entry for this fixture carries ``phase_wired: 3`` and the
        wired test path points back to this file.
 
-Phase 2 carry-forward: MANIFEST ``phase: 3`` tag is now consumed by this test
-(see Task 1 step 6 of the plan + the MANIFEST.yaml update).
+The MANIFEST ``phase: 3`` tag for this fixture is consumed by this test.
 """
 from __future__ import annotations
 
@@ -143,8 +142,7 @@ async def test_at_a1_replay_via_real_http(
 def test_manifest_records_at_a1_phase_wired() -> None:
     """The MANIFEST.yaml entry for AT-A1 carries ``phase_wired: 3`` and points here.
 
-    This is the consumer side of the Phase 2 → Phase 3 carry-forward signal:
-    the MANIFEST entry tagged ``phase: 3`` is now wired to a concrete test.
+    The MANIFEST entry tagged ``phase: 3`` is now wired to a concrete test.
     """
     import yaml
 

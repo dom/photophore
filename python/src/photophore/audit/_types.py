@@ -14,9 +14,9 @@ AUDIT-04 payload shape for dispatch events:
         "receipt_signature_hash": str | None,
     }
 
-Phase 2 stores this payload; Phase 3 (dispatch coordinator) actually populates it
-during a real dispatch. Phase 2 tests verify storage + retrieval at the AuditLog
-API layer (AUDIT-04 storage scope).
+The audit log stores this payload shape; the dispatch coordinator populates
+it during a real dispatch. Storage-layer tests verify storage + retrieval at
+the AuditLog API layer (AUDIT-04 storage scope).
 """
 from __future__ import annotations
 

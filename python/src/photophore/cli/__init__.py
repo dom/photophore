@@ -1,7 +1,7 @@
 """photophore CLI — single entry point with structured exit codes (D-13, D-14).
 
 Root group: photophore
-Sub-groups: channel | audit | classify (Plan 02-02) | policy (Plan 02-03)
+Sub-groups: channel | audit | classify | policy | dispatch
 
 Usage:
   photophore [--json] [--data-dir DIR] channel new|open|list|show|suspend|close|set-ceiling

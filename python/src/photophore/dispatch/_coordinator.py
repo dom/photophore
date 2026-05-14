@@ -52,7 +52,7 @@ class DispatchOutcome:
     envelope_id
         The envelope_id from the outgoing task draft.
     receipt_signature_hash
-        The signature_hash from the verified receipt (Phase 1 Receipt.signature_hash).
+        The signature_hash from the verified receipt (thermocline Receipt.signature_hash).
     pre_audit_hash
         entry_hash of the dispatch.pre audit entry.
     post_audit_hash
@@ -62,7 +62,7 @@ class DispatchOutcome:
     result_body
         Parsed task_result envelope dict returned by the forge. Populated only
         after receipt-verify AND policy-compare both succeed. Documented
-        inspection path for downstream tests (e.g., Plan 03-03 describe-forge
+        inspection path for downstream tests (e.g., describe-forge
         normative-string assertion).
     """
 
@@ -234,13 +234,13 @@ async def dispatch_async(
             task_draft.get("issuer")
             or channel.local_node
         )
-        # The wire contract (FORGE-01 / Plan 03-02 SP-3.2-01):
+        # The wire contract (FORGE-01):
         # 1. Pre-fill ALL dispatch_signature fields EXCEPT the sig payload
         #    (``sig`` / ``bytes_hex``). Both the sovereign and the forge
         #    canonicalize an envelope whose dispatch_signature block has the
         #    sig fields ABSENT.
         # 2. Sign the canonical bytes of that pre-filled envelope.
-        # 3. Attach the sig under ``bytes_hex`` (Phase 3 wire) — the forge
+        # 3. Attach the sig under ``bytes_hex`` (v0.1 wire) — the forge
         #    deep-copies and pops ``sig``+``bytes_hex`` on its verify side.
         signing_input = dict(task_draft)
         sig_block_for_sign = dict(signing_input.get("dispatch_signature") or {})
@@ -296,9 +296,9 @@ async def dispatch_async(
     try:
         receipt_block = result.get("receipt_signature") or {}
         # Spec canonical field name is ``sig`` (per task_result.schema.json).
-        # Phase 3 Plan 03-01 wrote ``bytes_hex`` to mirror the dispatch_signature
-        # convention; Plan 03-03 Task 1 surfaced the wire mismatch against real
-        # forges that emit ``sig``. Accept either for compatibility.
+        # Earlier drafts wrote ``bytes_hex`` to mirror the dispatch_signature
+        # convention; integration against real forges that emit ``sig`` surfaced
+        # the wire mismatch. Accept either for compatibility.
         bytes_hex = receipt_block.get("sig") or receipt_block.get("bytes_hex")
         if not bytes_hex:
             raise DispatchError(
@@ -323,7 +323,7 @@ async def dispatch_async(
                 or channel.remote_node
             ),
         )
-        # FORGE-01 / Plan 03-02 SP-3.2-01: the forge signed the result with
+        # FORGE-01: the forge signed the result with
         # receipt_signature.sig = None. To recover the same canonical bytes,
         # deep-copy the result and pop both sig and bytes_hex from the
         # receipt_signature block before passing to the verifier.
@@ -361,7 +361,7 @@ async def dispatch_async(
         )
 
     # ---- Step 8b: POLICY-03 closure ------------------------------------------
-    # Plan 03-03 v0.1 derivation rule (closes 03-01's deferred decision):
+    # v0.1 derivation rule:
     #   * If the forge surfaces explicit ``persisted_fields`` / ``returned_fields``
     #     at the result top level, use those values (honor what the forge
     #     declared it did).
@@ -373,7 +373,7 @@ async def dispatch_async(
     #     counts as both returned AND persisted.
     #
     # This rule is what makes tier-0 channels meaningfully refuse non-empty
-    # outputs (POLICY-03 closure: SC2 second half / Plan 03-03 Test 3).
+    # outputs (POLICY-03 closure).
     if "persisted_fields" in result:
         derived_persisted = list(result["persisted_fields"])
     else:

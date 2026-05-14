@@ -3,7 +3,7 @@
 Provides:
 - ``in_memory_keyring``: installs a real in-memory KeyringBackend for one test
   (replicates the brine_in_memory_keyring pattern from thermocline/python/tests/conftest.py,
-  using a real KeyringBackend subclass so the BL-03 isinstance probe passes)
+  using a real KeyringBackend subclass so the isinstance probe passes)
 - ``audit_log``: AuditLog backed by a tmp_path file
 - ``channel_store``: ChannelStore with in-memory keyring + tmp_path DBs
 """
@@ -24,7 +24,7 @@ class _InMemoryKeyringBackend(KeyringBackend):
 
     Class name is deliberately NOT 'Keyring' so it is unambiguously distinct
     from keyring.backends.fail.Keyring and keyring.backends.null.Keyring
-    (both of which the BL-03 isinstance probe rejects). This is the same pattern
+    (both of which the keystore isinstance probe rejects). This is the same pattern
     used by thermocline/python/tests/conftest.py::brine_in_memory_keyring.
     """
 

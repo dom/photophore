@@ -106,13 +106,12 @@ def test_load_rules_reason_in_path_rule_format(valid_rules_path: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # load_rules — pathspec **/.env* bare .env match verification
-# (This is the key finding from 02-RESEARCH.md — fnmatch fails, pathspec passes)
+# (fnmatch fails, pathspec passes — verified empirically)
 
 
 def test_pathspec_matches_bare_dotenv(valid_rules_path: Path) -> None:
     """CRITICAL: pathspec gitwildmatch `**/.env*` must match bare `.env` filename.
 
-    This is the failure case from 02-RESEARCH.md key finding #2:
     fnmatch and pathlib.PurePath.match both fail on this. pathspec>=1.1.1 passes.
     """
     rules = load_rules(valid_rules_path)

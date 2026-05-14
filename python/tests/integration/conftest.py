@@ -1,4 +1,4 @@
-"""Integration test fixtures: subprocess_forge per CONTEXT D-04.
+"""Integration test fixtures: subprocess_forge.
 
 Spawns a real forge subprocess on an ephemeral port with an isolated keystore
 namespace, polls ``GET /pubkey`` for readiness, yields ``(url, pubkey_hex, role)``
@@ -118,7 +118,7 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
     The fixture is indirect-parametrized via ``@pytest.mark.parametrize(
     "subprocess_forge", ["pi-forge"|"describe-forge"], indirect=True)``.
 
-    Steps (CONTEXT D-04, 03-RESEARCH Pattern 7):
+    Steps:
         1. Allocate ephemeral port.
         2. Allocate ephemeral keystore namespace ``seamount.<role>.test-<uuid>``.
         3. ``<role> init --keyring-service <ns>`` to generate the forge keypair.
@@ -133,9 +133,9 @@ def subprocess_forge(request: pytest.FixtureRequest) -> Generator[
     test_ns = f"{meta['namespace_prefix']}.test-{uuid.uuid4().hex[:8]}"
     port = _free_port()
     forge_dir = Path(meta["dir"])
-    # Prefer a per-forge .venv python (local dev convention from Plan 03-02);
-    # fall back to the current interpreter (CI environments install the forge
-    # into the runner's site-packages and have no per-forge venv).
+    # Prefer a per-forge .venv python (local dev convention); fall back to the
+    # current interpreter (CI environments install the forge into the runner's
+    # site-packages and have no per-forge venv).
     venv_python = forge_dir / ".venv" / "bin" / "python3"
     if not venv_python.exists():
         venv_python = forge_dir / ".venv" / "bin" / "python"
@@ -343,9 +343,9 @@ def sovereign_provider() -> Generator[
 def _orphan_keystore_sweep() -> Generator[None, None, None]:
     """Session-scoped sweep: best-effort cleanup of orphaned test namespaces from SIGKILL'd prior runs.
 
-    The platform ``keyring`` library has no list API (Phase 2 LEARNINGS), so we
-    cannot enumerate. This fixture exists as a documentation placeholder; the
-    real cleanup happens in per-test finalizers above.
+    The platform ``keyring`` library has no list API, so we cannot enumerate.
+    This fixture exists as a documentation placeholder; the real cleanup
+    happens in per-test finalizers above.
     """
     yield
     # No-op: see docstring.

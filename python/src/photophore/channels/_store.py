@@ -142,7 +142,7 @@ class ChannelStore:
         self._channels_db_path = str(channels_db_path)
         self._conn = _connect_channels_db(self._channels_db_path)
         self._audit = audit_log
-        # BL-03 isinstance probe — refuse to start if keystore unavailable.
+        # Isinstance probe — refuse to start if keystore unavailable.
         _probe_keystore()
 
     @property
@@ -190,7 +190,7 @@ class ChannelStore:
         )
         # D-07 STEP 1: keystore (authoritative trust store) + _index sentinel.
         _set_channel(channel_id, _channel_to_dict(channel))
-        add_to_index(channel_id)  # OQ-1 resolved: _index sentinel
+        add_to_index(channel_id)  # _index sentinel keeps keystore enumerable
 
         # D-07 STEP 2: audit append BEFORE reporting success (CHAN-05).
         self._audit.append(

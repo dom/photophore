@@ -1,6 +1,6 @@
 """photophore.channels — channel registry backed by the platform keystore.
 
-Public API for Plan 02-01 (and downstream 02-02, 02-03, Phase 3):
+Public API:
     from photophore.channels import (
         Channel, ChannelStore, ChannelState,
         ChannelStateError, UnauditedChannelError,

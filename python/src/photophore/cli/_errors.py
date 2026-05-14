@@ -5,10 +5,9 @@ Exit code contract:
   1  generic (click default; used for ChannelStateError)
   2  config error (rules file missing/malformed, channel record corrupt)
   3  audit chain integrity failure (chain broken — privacy-critical incident)
-  4  classifier error (Plan 02-02)
+  4  classifier error
   5  keystore error (keystore unavailable, channel not found)
-
-Phase 3 reserves exit code 6 for dispatch errors.
+  6  dispatch error
 
 These ClickException subclasses are raised by CLI subcommands; click calls sys.exit()
 with the exit_code after formatting the error message to stderr.

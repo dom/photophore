@@ -50,5 +50,4 @@ These three stores are NEVER co-located (AT-A5 structural defense).
 ## Links
 
 - Spec: `../README.md` (Photophore v0.3.0-draft)
-- Planning context: `../../thermocline/.planning/phases/02-photophore-privacy-primitives-foundations/02-CONTEXT.md`
 - Thermocline suite: https://github.com/dom/thermocline

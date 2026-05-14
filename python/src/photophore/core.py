@@ -1,9 +1,9 @@
 """Shared types used across photophore.{audit, channels, classifier, shadow, policy, cli}.
 
-OQ-5 resolved: flat module (not a package) to avoid circular imports.
-All shared enums, NewTypes, and constants live here. No module under
-photophore.{audit, channels, classifier, shadow, policy} imports from each
-other — they all import from photophore.core.
+Flat module (not a package) to avoid circular imports. All shared enums,
+NewTypes, and constants live here. No module under photophore.{audit,
+channels, classifier, shadow, policy} imports from each other — they all
+import from photophore.core.
 """
 from __future__ import annotations
 
@@ -46,9 +46,9 @@ class ChannelState(Enum):
 # lets _store.py validate incoming event_type arguments at the API boundary.
 
 class AuditEventType:
-    """String constants for every audit event type shipped in Phase 2.
+    """String constants for every audit event type shipped in v0.1.
 
-    Channel lifecycle (Plan 02-01):
+    Channel lifecycle:
     - CHANNEL_CREATED: new channel registered
     - CHANNEL_OPENED: PROPOSED -> OPEN transition
     - CHANNEL_SUSPENDED: OPEN -> SUSPENDED transition
@@ -56,13 +56,13 @@ class AuditEventType:
     - CHANNEL_CEILING_LOWERED: ceiling reduced (CHAN-03)
     - CHANNEL_CEILING_RAISED: ceiling raised — DISTINCT event per CHAN-03
 
-    Dispatch lifecycle (Phase 3 scope):
+    Dispatch lifecycle:
     - DISPATCH_PRE: before dispatch; AUDIT-04 payload
     - DISPATCH_RECEIPT: after receipt verification
     - DISPATCH_FAILED: dispatch aborted
 
-    CLI invocations (Phase 4 wires every CLI subcommand to emit one):
-    - CLI_INVOKED: records which subcommand ran (CLI-06 scope, Phase 4)
+    CLI invocations (every CLI subcommand emits one):
+    - CLI_INVOKED: records which subcommand ran (CLI-06 scope)
     """
 
     # Channel lifecycle
@@ -73,17 +73,17 @@ class AuditEventType:
     CHANNEL_CEILING_LOWERED: str = "channel.ceiling_lowered"
     CHANNEL_CEILING_RAISED: str = "channel.ceiling_raised"
 
-    # Channel lifecycle additions for Phase 3 D-01 fetched-pubkey TOFU registration.
+    # Channel lifecycle: fetched-pubkey TOFU registration.
     # Logged by `photophore channel new --fetch-pubkey-from URL` between the keystore
     # write and the channels.db upsert (D-07 atomic three-step).
     CHANNEL_PUBKEY_REGISTERED: str = "channel.pubkey_registered"
 
-    # Dispatch lifecycle (Phase 3)
+    # Dispatch lifecycle
     DISPATCH_PRE: str = "dispatch.pre"
     DISPATCH_RECEIPT: str = "dispatch.receipt"
     DISPATCH_FAILED: str = "dispatch.failed"
 
-    # CLI invocations (Phase 4)
+    # CLI invocations
     CLI_INVOKED: str = "cli.invoked"
 
 

@@ -8,12 +8,12 @@ Exit-code mapping (D-14):
   1  generic (ChannelStateError — click default)
   2  config  (ConfigError)
   3  audit chain integrity (AuditChainBrokenError → AuditIntegrityError in CLI)
-  4  classifier (ClassifierError — Plan 02-02)
+  4  classifier (ClassifierError)
   5  keystore (KeystoreError, UnauditedChannelError)
 """
 from __future__ import annotations
 
-from thermocline import KeystoreUnavailableError  # re-export from Phase 1
+from thermocline import KeystoreUnavailableError  # re-exported from thermocline
 
 __all__ = [
     "PhotophoreError",
@@ -105,7 +105,7 @@ class ShadowIrreversibilityError(PhotophoreError):
 
     Raised by ``irreversibility_test()`` when the abstraction string contains any
     substring of the source content that is >= ``_IRREVERSIBILITY_MIN_SUBSTR_LEN``
-    characters long (8 chars per 02-RESEARCH §7 finding). Dispatch MUST abort.
+    characters long (8 chars per shadow-quality research finding). Dispatch MUST abort.
     """
 
     def __init__(self, message: str, *, code: str = "SHADOW_IRREVERSIBILITY_FAILED") -> None:

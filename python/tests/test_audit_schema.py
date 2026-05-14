@@ -3,7 +3,7 @@
 Tests verify:
 - Schema created correctly (columns + indexes)
 - INSERT succeeds on a fresh connection
-- DELETE raises sqlite3.IntegrityError (NOT OperationalError — verified per 02-RESEARCH.md)
+- DELETE raises sqlite3.IntegrityError (NOT OperationalError — verified against SQLite 3.53.0)
 - UPDATE raises sqlite3.IntegrityError
 """
 from __future__ import annotations

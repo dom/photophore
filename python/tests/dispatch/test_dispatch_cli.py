@@ -1,10 +1,10 @@
-"""Task 3 dispatch CLI tests (CLI-03, D-03, D-14 exit code 6).
+"""Dispatch CLI tests (CLI-03, D-03, D-14 exit code 6).
 
 Tests verify:
   - exit 0 on happy path; --json emits the spec-shape document
   - exit 6 on CHANNEL_RESOLVE_FAILED with the human-mode "error: dispatch failed
     (CHANNEL_RESOLVE_FAILED) at step 1: ..." prefix
-  - exit 6 on RECEIPT_INVALID with JSON body shape per CONTEXT D-03
+  - exit 6 on RECEIPT_INVALID with JSON body shape per D-03
   - exit 6 on POLICY_VIOLATED with retryable=false
   - exit 6 on AUDIT_FAILED_PRE with retryable=true
 """
@@ -159,7 +159,7 @@ def test_dispatch_channel_resolve_failed_exits_6(
 def test_dispatch_receipt_invalid_exits_6_json(
     tmp_path: Path, in_memory_keyring: object
 ) -> None:
-    """Forged-receipt path → exit 6 with the CONTEXT D-03 JSON body shape."""
+    """Forged-receipt path → exit 6 with the D-03 JSON body shape."""
     _seed_channel(tmp_path, "chan-1")
     draft = _write_draft(tmp_path)
     runner = CliRunner()

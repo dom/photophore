@@ -2,17 +2,18 @@
 
 HARD FAIL: irreversibility_test — raises ShadowIrreversibilityError when the
 abstraction contains any substring of the source content with length >=
-_IRREVERSIBILITY_MIN_SUBSTR_LEN (8 chars, per 02-RESEARCH §7). Dispatch aborts.
+_IRREVERSIBILITY_MIN_SUBSTR_LEN (8 chars, per shadow-quality research).
+Dispatch aborts.
 
 SOFT WARN: relevance_preservation_test, distinguishability_test — return a list
-of warning strings. The Shadow is still returned. Phase 3 dispatch coordinator
+of warning strings. The Shadow is still returned. The dispatch coordinator
 records non-empty warnings to the audit log.
 """
 from __future__ import annotations
 
 from ..errors import ShadowIrreversibilityError
 
-# Pinned by 02-RESEARCH.md key finding §7.
+# Pinned by shadow-quality research:
 # 4-char threshold produced false positives on common English words;
 # 8-char threshold passes all verified test cases.
 # Named constant per CLASS-06 / SHADOW-04 idiom.
@@ -61,8 +62,8 @@ def relevance_preservation_test(
     apparent information content is poorly matched to the declared relevance.
 
     v0.1 heuristic: if relevance > 0.8 and the abstraction is shorter than
-    30 characters, warn. This is intentionally simple; Phase 4 may extend with
-    corpus-statistical measures.
+    30 characters, warn. This is intentionally simple; later versions may
+    extend with corpus-statistical measures.
 
     Never raises — soft fail only. Returns an empty list on pass.
     """
@@ -80,7 +81,7 @@ def distinguishability_test(abstraction: str) -> list[str]:
     generic that distinct source documents would produce identical abstractions.
 
     v0.1 heuristic: flag exact matches against known generic template phrases.
-    Phase 4 may extend with corpus-statistical checks.
+    Later versions may extend with corpus-statistical checks.
 
     Never raises — soft fail only. Returns an empty list on pass.
     """
@@ -93,7 +94,7 @@ def distinguishability_test(abstraction: str) -> list[str]:
     )
     if abstraction in _GENERIC_TEMPLATES:
         # Note: v0.1 strategies are generic by design. This warning is informational,
-        # not blocking. Phase 4 hardening may upgrade it.
+        # not blocking. Later versions may upgrade it.
         warnings.append(
             "abstraction matches a known generic template; "
             "consider adding corpus-statistical signals for better distinguishability"

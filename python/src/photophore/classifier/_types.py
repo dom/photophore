@@ -48,9 +48,9 @@ class PathRules(Protocol):
     """Protocol for the loaded path-rules container produced by load_rules().
     Implementation lives in _rules.py as `_LoadedPathRules` (duck-typed).
 
-    W7: `rules` is a read-only property in the Protocol so that frozen dataclass
-    implementations satisfy it without a `# type: ignore[return-value]` escape hatch.
-    Per Phase 1 LEARNINGS.md: explicit Protocol over type:ignore.
+    `rules` is a read-only property in the Protocol so that frozen dataclass
+    implementations satisfy it without a `# type: ignore[return-value]` escape
+    hatch — explicit Protocol over type:ignore.
     """
 
     @property

@@ -4,17 +4,16 @@
 Drives the dispatch path 200 times with freshly-generated tier-1 shadow blocks
 and asserts every recorded shadow_id in the resulting audit log is distinct.
 
-Architecture note (Plan 04-01 deviation, Rule 3):
-    The plan-as-drafted called for spawning ``subprocess_forge`` (pi-forge) and
-    issuing 200 real HTTP dispatches. In v0.1, however, shadow IDs are
-    generated UPSTREAM of dispatch_async — the coordinator preserves whatever
-    shadow_id the envelope already carries (`_coordinator.py` lines 169-188:
+Architecture note:
+    A subprocess-forge variant of this test would issue 200 real HTTP
+    dispatches. In v0.1, however, shadow IDs are generated UPSTREAM of
+    dispatch_async — the coordinator preserves whatever shadow_id the
+    envelope already carries (`_coordinator.py` lines 169-188:
     "v0.1 does not regenerate shadows here"). The shadow uniqueness invariant
     is therefore exercised by the shadow.generate() loop combined with the
     dispatch_pre audit-write path; running 200 real forge subprocesses would
     cost ~minutes per CI run without measuring anything different. We instead
-    use the audit-log + shadow-generator combination (no forge spawn) and
-    document this in the docstring + summary.
+    use the audit-log + shadow-generator combination (no forge spawn).
 
     The CI-relevant property: 200 freshly-generated shadow blocks dispatched
     through the dispatch_pre audit step produce 200 distinct shadow_ids in the

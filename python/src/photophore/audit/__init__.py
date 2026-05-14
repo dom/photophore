@@ -1,6 +1,6 @@
 """photophore.audit — append-only, cryptographically chained audit log.
 
-Public API for Plan 02-01 (and downstream 02-02, 02-03, Phase 3):
+Public API:
     from photophore.audit import (
         AuditLog, AuditEntry, asdict, from_dict,
         AnchorTarget, NullAnchor, AnchorReceipt,

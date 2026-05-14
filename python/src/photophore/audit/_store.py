@@ -182,8 +182,8 @@ class AuditLog:
         """Streaming raw-dict iterator over entries (D-02 export path).
 
         All JSON1-based filters (shadow_id, tier, receipt_status) are verified
-        against SQLite 3.53.0 in 02-RESEARCH.md. JSON1 is available on macOS
-        stdlib SQLite (3.38+) and standard Linux builds.
+        against SQLite 3.53.0. JSON1 is available on macOS stdlib SQLite
+        (3.38+) and standard Linux builds.
         """
         clauses: list[str] = []
         params: list[Any] = []

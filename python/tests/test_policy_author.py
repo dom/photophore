@@ -80,12 +80,12 @@ class TestAuthorTier2:
     def test_tier2_persist_to_shared_is_permissive(self) -> None:
         """Tier-2 v0.1 template: empty persist_to_shared (no field-name restriction).
 
-        Plan 03-03 deviation: previously surfaced ``["public_outputs"]`` as a
-        placeholder allow-list. Combined with the Plan 03-03 v0.1 derivation
-        rule (persisted_fields = outputs.keys when forge omits the explicit
-        field), this caused tier-2 happy-path dispatches against real forges
-        (whose output keys aren't "public_outputs") to falsely trip
-        POLICY-03. Empty lists here mean "no allow-list rule applies".
+        An earlier draft surfaced ``["public_outputs"]`` as a placeholder
+        allow-list. Combined with the v0.1 derivation rule (persisted_fields
+        = outputs.keys when forge omits the explicit field), this caused
+        tier-2 happy-path dispatches against real forges (whose output keys
+        aren't "public_outputs") to falsely trip POLICY-03. Empty lists here
+        mean "no allow-list rule applies".
         """
         channel = _make_channel("tier-2")
         draft = _load_draft("task-draft.json")
@@ -120,7 +120,7 @@ class TestAuthorPolicy01IgnoresDraftPolicy:
         )
 
     def test_authored_differs_from_injected(self) -> None:
-        # Tier-2 channel authored policy (Plan 03-03): persist_to_shared=[]
+        # Tier-2 channel authored policy: persist_to_shared=[]
         # Injected policy: persist_to_shared=["EVERYTHING"]
         # The authored policy must NEVER reflect the injected draft.
         channel = _make_channel("tier-2")

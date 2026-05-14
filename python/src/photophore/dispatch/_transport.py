@@ -1,6 +1,6 @@
 """httpx async transport for dispatch step 7 (DISP-05: the ONLY network I/O in photophore).
 
-Maps httpx exceptions to the appropriate DispatchSubcode per CONTEXT D-03:
+Maps httpx exceptions to the appropriate DispatchSubcode per D-03:
   - httpx.TimeoutException → TRANSPORT_TIMEOUT (retryable)
   - httpx.ConnectError → TRANSPORT_REFUSED (retryable)
   - httpx.HTTPError (catch-all) → TRANSPORT_REFUSED (retryable)

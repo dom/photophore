@@ -1,15 +1,14 @@
-"""Poisoned-audit-DB E2E test — DISP-02 abort gate (Plan 03-03 Task 2).
+"""Poisoned-audit-DB E2E test — DISP-02 abort gate.
 
-Closes Phase 3 SC2 second half. The sovereign-side audit log is constructed
-with a path that cannot be written (a directory). The first ``audit.append``
-call at step 5 raises; dispatch must abort with
-``DispatchError.AUDIT_FAILED_PRE`` (stage 5, retryable=True). A live
-subprocess forge with a ``multiprocessing.Value("i", 0)`` shared counter
-proves the forge NEVER received a request — the abort gate fires BEFORE
-signing/transport.
+The sovereign-side audit log is constructed with a path that cannot be
+written (a directory). The first ``audit.append`` call at step 5 raises;
+dispatch must abort with ``DispatchError.AUDIT_FAILED_PRE`` (stage 5,
+retryable=True). A live subprocess forge with a
+``multiprocessing.Value("i", 0)`` shared counter proves the forge NEVER
+received a request — the abort gate fires BEFORE signing/transport.
 
-Per CONTEXT D-04 this is a DISP-02 abort-gate test that requires a real
-wire; ``httpx.MockTransport`` is NOT permitted.
+This is a DISP-02 abort-gate test that requires a real wire;
+``httpx.MockTransport`` is NOT permitted.
 """
 from __future__ import annotations
 
@@ -135,7 +134,7 @@ async def test_poisoned_audit_aborts_before_sign(
 ) -> None:
     """Audit-pre write fails → dispatch raises AUDIT_FAILED_PRE; forge never hit.
 
-    DISP-02 conformance (Phase 3 SC2 second half). The forge subprocess
+    DISP-02 conformance. The forge subprocess
     runs and is reachable, but the dispatch must abort at step 5 before
     transport (step 7) executes.
     """

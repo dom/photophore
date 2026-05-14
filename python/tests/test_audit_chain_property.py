@@ -51,9 +51,8 @@ def _drop_update_trigger(conn: sqlite3.Connection) -> None:
 @given(
     # Use flatmap to generate (n_entries, tamper_index) as a correlated pair.
     # Range 2..20 gives sum(1..19)=190 unique pairs; combined with retried
-    # generation Hypothesis comfortably reaches 200 distinct draws (Pitfall 1
-    # — widened from max_value=15 in Phase 4 to avoid pair saturation at
-    # max_examples=200).
+    # generation Hypothesis comfortably reaches 200 distinct draws.
+    # max_value widened from 15 to avoid pair saturation at max_examples=200.
     args=st.integers(min_value=2, max_value=20).flatmap(
         lambda n: st.integers(min_value=0, max_value=n - 1).map(lambda i: (n, i))
     ),
@@ -100,7 +99,7 @@ def test_payload_tamper_invalidates_chain(
 @given(
     # tamper_index >= 1 (chain head has no prev_hash to corrupt).
     # Range 3..22 gives 2+3+...+21=230 unique pairs, exceeding the 200-example
-    # target with headroom (Pitfall 1 — widened from max_value=16 in Phase 4).
+    # target with headroom. max_value widened from 16 to avoid pair saturation.
     args=st.integers(min_value=3, max_value=22).flatmap(
         lambda n: st.integers(min_value=1, max_value=n - 1).map(lambda i: (n, i))
     ),

@@ -5,12 +5,11 @@ Mitigation in v0.1: AT-A1 fixture exercises channel-impersonation rejection;
 the dispatch coordinator refuses to issue a Receipt against an envelope
 arriving from a key that does not own the channel.
 
-Source-of-truth wire-in: photophore/python/tests/integration/test_e2e_at_a1_replay.py
-(Phase 3 SUMMARY 03-03 records this AT-A1 = phase_wired:3).
+Source-of-truth wire-in: photophore/python/tests/integration/test_e2e_at_a1_replay.py.
 """
 # AT-SURFACE: AT-A1
-# Re-export from the Phase 3 integration test so at_coverage.py filename-scan
-# sees AT-A1 covered without duplicating the assertion. The source-of-truth
+# Re-export from the integration test so at_coverage.py filename-scan sees
+# AT-A1 covered without duplicating the assertion. The source-of-truth
 # implementation stays in tests/integration/.
 import pytest
 

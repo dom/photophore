@@ -27,7 +27,7 @@ def test_dispatch_error_supports_blocked_tier_reason_fields() -> None:
 
 
 def test_dispatch_error_backward_compat_optional_fields_default_none() -> None:
-    """Phase 3 call sites that omit the new fields still work; defaults are None."""
+    """Existing call sites that omit the new fields still work; defaults are None."""
     exc = DispatchError(
         "transport timeout",
         subcode=DispatchSubcode.TRANSPORT_TIMEOUT,

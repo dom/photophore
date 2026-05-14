@@ -7,8 +7,8 @@ POLICY-02: policy is derived from channel ceiling + envelope output_contract. v0
 ships task-envelope authoring only; manifest authoring (job envelopes) is v0.2.
 
 POLICY-03: compare_result_against_policy() helper returns False when received result
-violates authored policy. Phase 2 ships the helper + fixture; Phase 3 wires it into
-the dispatch coordinator's step-9 receipt-comparison (DISP-03 verify-before-append).
+violates authored policy. The dispatch coordinator wires the helper into its
+step-9 receipt-comparison (DISP-03 verify-before-append).
 """
 from __future__ import annotations
 
@@ -21,8 +21,8 @@ from ..errors import PolicyError
 
 # Ceiling -> ResultPolicy template (POLICY-02).
 # Ceilings arrive from Channel.ceiling as "tier-0" | "tier-1" | "tier-2".
-# These templates represent the v0.1 policy derivation logic; Phase 3/4 may
-# extend with output_contract-type sensitivity.
+# These templates represent the v0.1 policy derivation logic; later versions
+# may extend with output_contract-type sensitivity.
 _CEILING_TO_POLICY_TEMPLATE: dict[str, dict[str, list[str]]] = {
     "tier-0": {
         # No content crosses. Strip everything before persistence.
@@ -44,15 +44,14 @@ _CEILING_TO_POLICY_TEMPLATE: dict[str, dict[str, list[str]]] = {
         # within scope". A future v0.2 may add field-name allow-lists when
         # output_contract types stabilize.
         #
-        # Plan 03-03 deviation Rule 1: the previous template surfaced the
-        # placeholder ``["public_outputs"]`` allow-list, which combined with
-        # the Plan 03-03 v0.1 derivation rule (persisted_fields = outputs.keys
-        # when forge omits the explicit field) caused tier-2 happy-path
-        # dispatches against real forges (pi-forge outputs={"pi", "digits_computed",
-        # "algorithm"}; describe-forge outputs={"descriptions", "note"}) to
-        # falsely trip POLICY-03. Empty lists here mean "no allow-list rule
-        # applies"; the conservative semantics fall through to allowing any
-        # forge output at tier-2.
+        # An earlier draft surfaced a placeholder ``["public_outputs"]``
+        # allow-list, which combined with the v0.1 derivation rule
+        # (persisted_fields = outputs.keys when forge omits the explicit field)
+        # caused tier-2 happy-path dispatches against real forges (pi-forge
+        # outputs={"pi", "digits_computed", "algorithm"}; describe-forge
+        # outputs={"descriptions", "note"}) to falsely trip POLICY-03. Empty
+        # lists here mean "no allow-list rule applies"; the conservative
+        # semantics fall through to allowing any forge output at tier-2.
         "persist_to_shared": [],
         "return_only": [],
         "strip_before_persist": [],
@@ -71,7 +70,7 @@ def author(channel: Channel, envelope_draft: Mapping[str, Any]) -> ResultPolicy:
 
     Args:
         channel: the resolved Channel (must be in OPEN state for actual dispatch;
-            author() does not enforce state — that is the Phase 3 dispatch coordinator's
+            author() does not enforce state — that is the dispatch coordinator's
             responsibility).
         envelope_draft: the task envelope draft dict (PRE-signing, as a Mapping).
             The ``result_policy`` field, if present, is STRUCTURALLY NOT CONSULTED.
@@ -107,8 +106,8 @@ def compare_result_against_policy(
 ) -> bool:
     """Return True if received_result respects authored_policy; False if it violates.
 
-    POLICY-03: full integration is Phase 3 (dispatch coordinator step 9 — verify-receipt
-    then compare-result). Phase 2 ships the comparison helper; Phase 3 wires it.
+    POLICY-03: full integration runs in the dispatch coordinator step 9
+    (verify-receipt then compare-result). This module supplies the helper.
 
     The ``received_result`` dict is expected to carry two keys produced by the forge:
       ``persisted_fields``: list[str] — fields the forge wrote to shared storage

@@ -1,13 +1,13 @@
-"""Forged-receipt E2E test — DISP-03 hard-fail gate (Plan 03-03 Task 2).
+"""Forged-receipt E2E test — DISP-03 hard-fail gate.
 
-Closes Phase 3 SC2 first half. A small inline Flask forge (spawned in its own
+A small inline Flask forge (spawned in its own
 process via multiprocessing) returns a structurally valid task_result envelope
 with ``receipt_signature.sig = "00" * 64`` — known-invalid for any real key.
 Dispatch must raise ``DispatchError.RECEIPT_INVALID`` (stage 8) and the audit
 log must contain exactly 1 entry (the pre-dispatch one) — no audit-post
 referencing the forged receipt.
 
-Test 4 additionally queries the audit log for ANY entry whose payload contains
+An additional check queries the audit log for ANY entry whose payload contains
 the forged sig hex; expects zero matches (DISP-03 strict — no record references
 the forged receipt anywhere).
 """
@@ -129,7 +129,7 @@ async def test_forged_receipt_rejected_no_audit_post(
 ) -> None:
     """Forge returns sig="00"*64; dispatch raises RECEIPT_INVALID; no audit-post.
 
-    DISP-03 conformance test (Phase 3 SC2 first half).
+    DISP-03 conformance test.
     """
     provider, verifier, sov_identity, sov_pubkey = sovereign_provider
     # The verifier must know about the forged-forge identity so the verify

@@ -96,12 +96,12 @@ class TestCompareResultViolation:
         assert compare_result_against_policy(compliant_result, policy) is True
 
     def test_tier2_compliant_any_persisted_fields(self) -> None:
-        """Plan 03-03 tier-2 template is permissive: persist_to_shared=[];
+        """The v0.1 tier-2 template is permissive: persist_to_shared=[];
         any forge-declared persisted fields are allowed."""
         channel = _make_channel("tier-2")
         draft = _load_draft("task-draft.json")
         policy = author(channel, draft)
-        # tier-2 v0.1 (Plan 03-03): empty allow-list = permissive.
+        # tier-2 v0.1: empty allow-list = permissive.
         assert policy.persist_to_shared == []
 
         # Both arbitrary field names and the legacy "public_outputs" placeholder
@@ -118,11 +118,10 @@ class TestPolicy03InjectedPolicyFixture:
     build a violating result, assert False."""
 
     def test_injected_policy_vs_authored_policy(self) -> None:
-        """Full POLICY-03 negative fixture flow (Plan 03-03 update):
+        """Full POLICY-03 negative fixture flow:
         1. Load draft with injected overly-permissive policy.
         2. Author the real policy from channel ceiling (tier-0 — the most
-           restrictive tier; tier-2's v0.1 template is permissive after
-           Plan 03-03's deviation).
+           restrictive tier; tier-2's v0.1 template is permissive).
         3. Verify authored policy != injected policy (POLICY-01).
         4. Build a received_result that would satisfy the INJECTED policy
            but VIOLATES the AUTHORED (channel-derived) policy.

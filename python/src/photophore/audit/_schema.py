@@ -55,12 +55,12 @@ def connect(path: Path | str) -> sqlite3.Connection:
     isolation_level=None = autocommit; we manage our own transaction semantics
     via INSERT (atomic at the row level in WAL mode).
 
-    check_same_thread=False lets Phase 3's asyncio.to_thread audit shim
-    invoke append/query from an executor thread without tripping sqlite3's
-    default per-connection thread affinity (03-RESEARCH Pitfall 2). WAL mode
-    plus row-level INSERT semantics keep concurrent writes safe; the audit
-    chain is still globally serialised by Python's GIL during the read-then-
-    write critical section in append().
+    check_same_thread=False lets the async dispatch coordinator's
+    asyncio.to_thread audit shim invoke append/query from an executor thread
+    without tripping sqlite3's default per-connection thread affinity. WAL
+    mode plus row-level INSERT semantics keep concurrent writes safe; the
+    audit chain is still globally serialised by Python's GIL during the
+    read-then-write critical section in append().
     """
     conn = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL;")

@@ -1,11 +1,11 @@
-"""`photophore dispatch` CLI subcommand (CLI-03, CONTEXT D-03, D-14 exit code 6).
+"""`photophore dispatch` CLI subcommand (CLI-03, D-14 exit code 6).
 
 Wires the 9-step async dispatch coordinator into a click subcommand:
   - --channel <id>: channel id to dispatch through
   - --task <path>: task envelope draft JSON file
   - --forge-url <url>: forge HTTP endpoint
 
-Exit code 6 family on DispatchError (per CONTEXT D-03):
+Exit code 6 family on DispatchError:
   - Human mode: single-line "error: dispatch failed (<SUBCODE>) at step <N>: <msg>."
   - --json mode: structured body { error, subcode, stage, message, retryable, ... }
 """

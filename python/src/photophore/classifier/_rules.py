@@ -8,8 +8,7 @@ CRITICAL: yaml.safe_load is mandatory (Pitfall 5 / PITFALLS.md security). yaml.l
 without SafeLoader is RCE via YAML tags.
 
 CRITICAL: pathspec>=1.1.1 with gitwildmatch semantics is required. fnmatch and
-pathlib.PurePath.match both fail on `**/.env*` matching bare `.env` (verified in
-02-RESEARCH.md key finding 2).
+pathlib.PurePath.match both fail on `**/.env*` matching bare `.env`.
 """
 from __future__ import annotations
 

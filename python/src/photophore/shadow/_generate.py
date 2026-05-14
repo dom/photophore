@@ -5,7 +5,7 @@ Order of operations per spec:
   2. irreversibility_test() — HARD FAIL raises ShadowIrreversibilityError (SHADOW-04)
   3. relevance_preservation_test() + distinguishability_test() — SOFT WARN -> warnings (SHADOW-04)
   4. shadow_id = str(uuid.uuid4()) — ALWAYS fresh per call (SHADOW-01, SHADOW-02, SHADOW-06)
-  5. Return ShadowResult(shadow, warnings) (OQ-3)
+  5. Return ShadowResult(shadow, warnings)
 
 NO CACHING: no module-level shadow cache, no @lru_cache, no @functools.cache.
 SHADOW-06 verified by grep gate in test_shadow_no_caching.py AND behavioral test

@@ -12,7 +12,7 @@ from photophore.audit import AuditLog
 
 
 class _InMemoryKeyringBackend(KeyringBackend):
-    """Real KeyringBackend subclass backed by a per-instance dict (BL-03 isinstance probe-safe)."""
+    """Real KeyringBackend subclass backed by a per-instance dict (isinstance probe-safe)."""
 
     priority: float = 100  # type: ignore[assignment]
 

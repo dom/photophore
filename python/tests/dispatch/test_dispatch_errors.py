@@ -91,9 +91,9 @@ def test_optional_fields() -> None:
 async def test_aio_shim_audit_append(tmp_audit_log) -> None:
     """audit_append_async returns the same entry_hash the sync log.append returns.
 
-    Uses a tmp_path-backed real AuditLog (per-method connection model, see 03-RESEARCH
-    Pitfall 2). Asserts the round-trip works inside an asyncio event loop via
-    asyncio.to_thread.
+    Uses a tmp_path-backed real AuditLog (per-method connection model so that
+    asyncio.to_thread can call into SQLite from a non-owner thread). Asserts
+    the round-trip works inside an asyncio event loop via asyncio.to_thread.
     """
     from photophore.dispatch._aio import audit_append_async
 
@@ -113,10 +113,10 @@ async def test_aio_shim_audit_append(tmp_audit_log) -> None:
 
 
 def test_aio_shim_no_async_def_in_phase2() -> None:
-    """D-11 invariant: zero `async def` anywhere in Phase 2 modules.
+    """D-11 invariant: zero `async def` anywhere in the sync-core modules.
 
-    Concatenates each Phase 2 module's __init__.py and asserts the literal substring
-    'async def' is absent. If a future change adds async to Phase 2 modules, this
+    Concatenates each sync-core module's __init__.py and asserts the literal substring
+    'async def' is absent. If a future change adds async to sync-core modules, this
     test surfaces it as a deliberate event (D-11 boundary breach).
     """
     src_root = Path(__file__).resolve().parents[2] / "src" / "photophore"
@@ -128,4 +128,4 @@ def test_aio_shim_no_async_def_in_phase2() -> None:
         src_root / "policy" / "__init__.py",
     ]
     blob = "\n".join(p.read_text() for p in targets)
-    assert "async def" not in blob, "Phase 2 module __init__ contains async def (D-11 violation)"
+    assert "async def" not in blob, "sync-core module __init__ contains async def (D-11 violation)"

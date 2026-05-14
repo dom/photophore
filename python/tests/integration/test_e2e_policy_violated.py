@@ -1,17 +1,15 @@
-"""Policy-violated E2E test — POLICY-03 closure (Plan 03-03 Task 2).
+"""Policy-violated E2E test — POLICY-03 closure.
 
-Closes the partial-closure obligation Phase 2 left open: describe-forge
-returns a result whose ``outputs`` contains keys that, under the v0.1
-derivation rule, count as persisted_fields. Under a tier-0 channel ceiling
-the policy template forbids any persistence — so the result violates the
-authored ResultPolicy and dispatch must raise POLICY_VIOLATED.
+describe-forge returns a result whose ``outputs`` contains keys that, under
+the v0.1 derivation rule, count as persisted_fields. Under a tier-0 channel
+ceiling the policy template forbids any persistence — so the result violates
+the authored ResultPolicy and dispatch must raise POLICY_VIOLATED.
 
 # v0.1 derivation: persisted_fields = list(result["outputs"].keys());
 #                  returned_fields  = list(result["outputs"].keys())
-This pins the convention Plan 03-03 chose (forges that omit explicit
-``persisted_fields`` / ``returned_fields`` get the conservative derivation
-from outputs). The dispatch coordinator applies this rule at step 8b when
-the forge response does not surface those fields.
+Forges that omit explicit ``persisted_fields`` / ``returned_fields`` get the
+conservative derivation from outputs. The dispatch coordinator applies this
+rule at step 8b when the forge response does not surface those fields.
 """
 from __future__ import annotations
 
@@ -74,7 +72,7 @@ async def test_policy_violated_e2e_describe_forge_tier0_channel(
     ``persist_to_shared=[]``, ``return_only=[]``, ``strip_before_persist=["*"]``
     per the policy template. describe-forge's response has
     ``outputs={"descriptions": [...], "note": None}`` — non-empty. Under the
-    v0.1 derivation rule (Plan 03-03), ``persisted_fields = list(outputs.keys())
+    v0.1 derivation rule, ``persisted_fields = list(outputs.keys())
     = ["descriptions", "note"]``. The tier-0 policy says NOTHING may be
     persisted (the "*" wildcard) — violation. POLICY-03 closure.
 

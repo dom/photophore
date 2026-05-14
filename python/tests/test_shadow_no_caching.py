@@ -49,7 +49,7 @@ class TestNoCachingGrepGate:
         )
 
     def test_no_async_def_in_shadow(self) -> None:
-        """D-11 gate: zero async def in photophore.shadow (sync-only Phase 2 APIs)."""
+        """D-11 gate: zero async def in photophore.shadow (sync-only APIs)."""
         result = subprocess.run(
             [
                 "grep",

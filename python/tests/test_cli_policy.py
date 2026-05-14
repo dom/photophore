@@ -148,7 +148,7 @@ class TestPolicyPreviewJsonMode:
     def test_preview_tier2_json(
         self, runner: CliRunner, data_dir: Path
     ) -> None:
-        """Tier-2 channel (Plan 03-03): permissive template — empty
+        """Tier-2 channel: permissive template — empty
         persist_to_shared/return_only/strip_before_persist."""
         channel_id = _create_channel(runner, data_dir, "tier-2")
         result = runner.invoke(

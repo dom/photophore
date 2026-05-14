@@ -1,4 +1,4 @@
-"""_index sentinel — keystore-based channel ID enumeration (D-06, OQ-1 RESOLVED YES).
+"""_index sentinel — keystore-based channel ID enumeration (D-06).
 
 python-keyring has no enumerate-by-service API. keyring.get_credential(service, None)
 does NOT return all usernames for a service. This sentinel is the ONLY way D-05's

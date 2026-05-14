@@ -2,7 +2,7 @@
 
 ContentType: closed enum of 6 spec-mandated content-type categories.
 Shadow: frozen dataclass — the tier-1 abstraction produced per dispatch.
-ShadowResult: frozen dataclass wrapping Shadow + soft-warn diagnostic strings (OQ-3).
+ShadowResult: frozen dataclass wrapping Shadow + soft-warn diagnostic strings.
 """
 from __future__ import annotations
 
@@ -52,13 +52,13 @@ class Shadow:
 
 @dataclass(frozen=True)
 class ShadowResult:
-    """generate() return value (OQ-3 resolution).
+    """generate() return value.
 
     Hard-fail (irreversibility): generate() raises ShadowIrreversibilityError;
     no ShadowResult is returned.
 
     Soft-fail (relevance / distinguishability): generate() returns ShadowResult
-    with non-empty ``warnings``. Phase 3 dispatch coordinator records non-empty
+    with non-empty ``warnings``. The dispatch coordinator records non-empty
     warnings to the audit log.
     """
 

@@ -8,7 +8,7 @@ Keystore namespace (D-06):
 - username: channel_id (UUIDv4) for per-channel records
 - username: "_index" for the sentinel (see _index.py)
 
-BL-03 isinstance probe pattern from Phase 1 (thermocline.identity):
+Isinstance probe pattern shared with thermocline.identity:
     isinstance(backend, (fail.Keyring, null.Keyring)) → unavailable
 DO NOT use substring match on class name (both are named 'Keyring').
 """
@@ -34,7 +34,7 @@ _KEYSTORE_SERVICE: str = "photophore.channel"
 
 
 def _probe_keystore() -> None:
-    """Verify keystore availability at startup (Phase 1 BL-03 pattern).
+    """Verify keystore availability at startup (shared isinstance-probe pattern).
 
     Raises KeystoreUnavailableError if:
     - keyring.get_keyring() raises
@@ -42,7 +42,7 @@ def _probe_keystore() -> None:
     - the backend is keyring.backends.null.Keyring (null/stub mode)
 
     DO NOT use isinstance on class name strings — both fail.Keyring and null.Keyring
-    are named 'Keyring'; the isinstance check is the correct approach (Phase 1 BL-03).
+    are named 'Keyring'; the isinstance check is the correct approach.
     """
     try:
         backend = keyring.get_keyring()

@@ -1,4 +1,4 @@
-"""Photophore → describe-forge happy-path E2E test (Plan 03-03 Task 1).
+"""Photophore → describe-forge happy-path E2E test.
 
 Exercises the **core privacy primitive**: a task envelope carrying a tier-1
 shadow round-trips through describe-forge into a templated description without
@@ -9,7 +9,7 @@ Asserts the normative D-02 template string:
     ``"This forge received a shadow of type '<content_type>' with relevance <relevance>."``
 
 Verifies the DispatchOutcome.result_body field (populated only after both
-receipt-verify and policy-compare pass per 03-01 Task 2 WARNING 4).
+receipt-verify and policy-compare pass).
 """
 from __future__ import annotations
 

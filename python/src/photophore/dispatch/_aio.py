@@ -1,8 +1,8 @@
-"""asyncio.to_thread shim wrapping Phase 2 sync APIs (D-11 sync-core + thin async shim).
+"""asyncio.to_thread shim wrapping the sync audit + channel + classifier APIs
+(D-11 sync-core + thin async shim).
 
-Rule-1 deviation note: the plan draft used positional log.append(entry) but the
-real Phase 2 AuditLog.append is kwargs-only and returns AuditEntry. The shim
-adapts and returns entry.entry_hash for the coordinator's pre/post_audit_hash
+AuditLog.append is kwargs-only and returns AuditEntry. The shim adapts and
+returns entry.entry_hash for the coordinator's pre/post_audit_hash
 bookkeeping (D-03).
 """
 from __future__ import annotations

@@ -1,7 +1,7 @@
-"""Test keystore probe and channel record operations (CHAN-04, D-06, BL-03).
+"""Test keystore probe and channel record operations (CHAN-04, D-06).
 
 Tests verify:
-- _probe_keystore() raises KeystoreUnavailableError for fail/null backends (BL-03)
+- _probe_keystore() raises KeystoreUnavailableError for fail/null backends
 - _get_channel/_set_channel/_delete_channel round-trip correctly
 - _get_index/_set_index/_add_to_index/_remove_from_index sentinel ops
 """
@@ -32,7 +32,7 @@ from photophore.errors import KeystoreUnavailableError
 
 
 def test_probe_keystore_raises_for_fail_backend() -> None:
-    """BL-03: isinstance probe against fail.Keyring (not substring match)."""
+    """Isinstance probe against fail.Keyring (not substring match)."""
     previous = keyring.get_keyring()
     keyring.set_keyring(_fail_backend.Keyring())
     try:
@@ -43,7 +43,7 @@ def test_probe_keystore_raises_for_fail_backend() -> None:
 
 
 def test_probe_keystore_raises_for_null_backend() -> None:
-    """BL-03: isinstance probe against null.Keyring."""
+    """Isinstance probe against null.Keyring."""
     previous = keyring.get_keyring()
     keyring.set_keyring(_null_backend.Keyring())
     try:
@@ -54,7 +54,7 @@ def test_probe_keystore_raises_for_null_backend() -> None:
 
 
 def test_probe_keystore_passes_for_real_backend(in_memory_keyring: object) -> None:
-    """BL-03: real backend (not fail/null) passes the probe."""
+    """A real backend (not fail/null) passes the probe."""
     _probe_keystore()  # must not raise with in_memory_keyring installed
 
 
