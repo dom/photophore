@@ -19,7 +19,6 @@ venv/
 .hypothesis/
 .pytest_cache/
 
-# Internal workspace (kept locally, not for public repo)
+# Local-only workspaces
 .planning/
 memory/
-local tool workspace

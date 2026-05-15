@@ -3,8 +3,8 @@
 Each strategy MUST include the spec-mandated MUST signals and exclude the MUST NOT
 signals listed in the spec table.
 
-Closed enum + match pattern (planner-resolved per CONTEXT.md implementer's discretion).
-Adding a 7th content type in v0.2 = add enum member + match arm (two localized changes).
+Closed enum + match pattern (implementer's discretion). Adding a 7th content
+type in v0.2 = add enum member + match arm (two localized changes).
 
 Strategy implementations are intentionally simple v0.1 templates — they generate
 generic templated abstractions, NOT verbatim quotes. The irreversibility test in
