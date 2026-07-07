@@ -187,3 +187,49 @@ def test_concurrent_appends_do_not_fork_chain(tmp_path) -> None:
     assert non_head_prev <= entry_hashes, (
         "an entry's prev_hash points at a nonexistent entry (dangling link)"
     )
+
+
+# ---------------------------------------------------------------------------
+# MED 8: the chain must be verified and walked in TRUE append order (rowid),
+# not by timestamp. Timestamps have millisecond resolution and are
+# caller-suppliable, so equal (or lying) timestamps must not scramble the walk.
+
+
+def test_verify_chain_walks_append_order_despite_equal_timestamps(tmp_path) -> None:
+    """Entries sharing one timestamp still verify: rowid is the walk order.
+
+    With ORDER BY timestamp, ties fell back to random UUID ids, so a burst of
+    same-millisecond appends produced a scrambled walk whose prev_hash checks
+    failed on an INTACT chain (and, worse, a verifier that does not walk true
+    append order can be gamed by attacker-chosen timestamps)."""
+    log = AuditLog(tmp_path / "audit.db")
+    same_ts = "2026-07-07T00:00:00.000Z"
+    appended = [
+        log.append(
+            event_type="channel.created",
+            channel_id=f"ch-{i}",
+            timestamp=same_ts,
+        )
+        for i in range(20)
+    ]
+
+    ok, head = log.verify_chain()
+    assert ok, f"intact chain failed verification under equal timestamps: {head}"
+    assert head == appended[-1].entry_hash
+
+    # export()/query() walk the same true append order.
+    exported = list(log.export())
+    assert [r["id"] for r in exported] == [e.id for e in appended], (
+        "export order must be true append order (rowid), not timestamp/id order"
+    )
+
+
+def test_verify_chain_not_fooled_by_backdated_timestamp(tmp_path) -> None:
+    """A caller-supplied EARLIER timestamp must not reorder the walk."""
+    log = AuditLog(tmp_path / "audit.db")
+    log.append(event_type="channel.created", channel_id="ch-a",
+               timestamp="2026-07-07T00:00:05.000Z")
+    log.append(event_type="channel.created", channel_id="ch-b",
+               timestamp="2026-07-07T00:00:01.000Z")  # backdated
+    ok, _ = log.verify_chain()
+    assert ok, "backdated timestamp reordered the chain walk"

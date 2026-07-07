@@ -271,7 +271,11 @@ class AuditLog:
         )
         if clauses:
             sql += " WHERE " + " AND ".join(clauses)
-        sql += " ORDER BY timestamp ASC, id ASC"
+        # MED 8: rowid ASC is the TRUE append order. Timestamps have
+        # millisecond resolution and are caller-suppliable, so ordering by
+        # timestamp scrambles same-millisecond bursts (random UUID tiebreak)
+        # and lets attacker-chosen timestamps reorder the verification walk.
+        sql += " ORDER BY rowid ASC"
 
         for row in self._conn.execute(sql, params):
             yield {
