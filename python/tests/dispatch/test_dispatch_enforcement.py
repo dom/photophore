@@ -289,3 +289,139 @@ def test_fail_closed_backstop_rejects_surviving_local_content() -> None:
             channel_id="chan-1",
             envelope_id="env-1",
         )
+
+
+# ---------------------------------------------------------------------------
+# Trust-ceiling enforcement (CHAN-01/CHAN-03): block tier vs channel ceiling
+
+
+@pytest.mark.asyncio
+@pytest.mark.at_surface("AT-A1")
+async def test_tier2_block_over_tier1_ceiling_blocks_dispatch(
+    tmp_path: Path, in_memory_keyring: object
+) -> None:
+    """A tier-2 (public content) block on a tier-1 channel blocks the WHOLE dispatch."""
+    audit_log = AuditLog(tmp_path / "audit.db")
+    store = ChannelStore(tmp_path / "channels.db", audit_log)
+    _seed_channel(store, channel_id="chan-1", ceiling="tier-1")
+    provider, verifier = _wire_mocks()
+
+    draft = _draft()
+    draft["context"] = [
+        {"tier": 2, "role": "background", "content": "public content over ceiling"},
+    ]
+
+    send_mock = AsyncMock(return_value=_result_ok())
+    with patch("photophore.dispatch._coordinator.send_async", new=send_mock):
+        with pytest.raises(DispatchError) as excinfo:
+            await dispatch_async(
+                channel_id="chan-1",
+                task_draft=draft,
+                audit_log=audit_log,
+                channel_store=store,
+                identity_provider=provider,
+                verifier=verifier,
+                forge_url="http://localhost:5000/task",
+            )
+    err = excinfo.value
+    assert err.subcode is DispatchSubcode.POLICY_VIOLATED
+    assert err.stage == 2
+    assert err.retryable is False
+    assert err.blocked_tier == "tier-2"
+    provider.sign.assert_not_called()
+    send_mock.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.at_surface("AT-A1")
+async def test_tier1_shadow_over_tier0_ceiling_blocks_dispatch(
+    tmp_path: Path, in_memory_keyring: object
+) -> None:
+    """A tier-1 shadow block on a tier-0 (metadata-only) channel blocks dispatch."""
+    audit_log = AuditLog(tmp_path / "audit.db")
+    store = ChannelStore(tmp_path / "channels.db", audit_log)
+    _seed_channel(store, channel_id="chan-1", ceiling="tier-0")
+    provider, verifier = _wire_mocks()
+
+    draft = _draft()
+    draft["context"] = [
+        {
+            "tier": 1,
+            "kind": "shadow",
+            "role": "notes",
+            "shadow": {
+                "shadow_id": "s-1",
+                "content_type": "document",
+                "abstraction": "document of length class short",
+                "relevance": 0.5,
+            },
+        },
+    ]
+
+    with pytest.raises(DispatchError) as excinfo:
+        await dispatch_async(
+            channel_id="chan-1",
+            task_draft=draft,
+            audit_log=audit_log,
+            channel_store=store,
+            identity_provider=provider,
+            verifier=verifier,
+            forge_url="http://localhost:5000/task",
+        )
+    assert excinfo.value.subcode is DispatchSubcode.POLICY_VIOLATED
+    assert excinfo.value.stage == 2
+    provider.sign.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_dropped_tier0_blocks_do_not_count_against_ceiling(
+    tmp_path: Path, in_memory_keyring: object
+) -> None:
+    """Blocks that are hard-dropped never cross, so a tier-0 channel still dispatches."""
+    audit_log = AuditLog(tmp_path / "audit.db")
+    store = ChannelStore(tmp_path / "channels.db", audit_log)
+    _seed_channel(store, channel_id="chan-1", ceiling="tier-0")
+    provider, verifier = _wire_mocks()
+
+    draft = _draft()
+    draft["context"] = [
+        {"tier": 0, "role": "note", "content": "stays home"},
+    ]
+
+    send_mock = AsyncMock(return_value=_result_ok())
+    with patch("photophore.dispatch._coordinator.send_async", new=send_mock):
+        outcome = await dispatch_async(
+            channel_id="chan-1",
+            task_draft=draft,
+            audit_log=audit_log,
+            channel_store=store,
+            identity_provider=provider,
+            verifier=verifier,
+            forge_url="http://localhost:5000/task",
+        )
+    assert send_mock.call_args.kwargs["signed_envelope"]["context"] == []
+    assert any("tier-0" in w for w in outcome.warnings)
+
+
+@pytest.mark.asyncio
+async def test_unknown_channel_ceiling_fails_closed(
+    tmp_path: Path, in_memory_keyring: object
+) -> None:
+    """A channel with an unrecognized ceiling string refuses to dispatch."""
+    audit_log = AuditLog(tmp_path / "audit.db")
+    store = ChannelStore(tmp_path / "channels.db", audit_log)
+    _seed_channel(store, channel_id="chan-1", ceiling="tier-9")
+    provider, verifier = _wire_mocks()
+
+    with pytest.raises(DispatchError) as excinfo:
+        await dispatch_async(
+            channel_id="chan-1",
+            task_draft=_draft(),
+            audit_log=audit_log,
+            channel_store=store,
+            identity_provider=provider,
+            verifier=verifier,
+            forge_url="http://localhost:5000/task",
+        )
+    assert excinfo.value.subcode is DispatchSubcode.CHANNEL_RESOLVE_FAILED
+    provider.sign.assert_not_called()

@@ -261,6 +261,19 @@ async def dispatch_async(
     warnings: list[str] = []
     # Each decision is (effective_rank, block, content_bytes_or_None, reason).
     decisions: list[tuple[int, dict[str, Any], bytes | None, str]] = []
+    # Trust-ceiling rank (CHAN-01/CHAN-03). An unrecognized ceiling string is
+    # a corrupt or hostile channel record: refuse to dispatch (fail closed)
+    # rather than guessing a permissive default.
+    ceiling_rank = _CEILING_RANK.get(channel.ceiling)
+    if ceiling_rank is None:
+        raise DispatchError(
+            f"channel ceiling {channel.ceiling!r} is not a known tier; "
+            f"refusing to dispatch (fail closed)",
+            subcode=DispatchSubcode.CHANNEL_RESOLVE_FAILED,
+            stage=1,
+            channel_id=channel_id,
+            envelope_id=envelope_id_hint or None,
+        )
     try:
         for idx, block in enumerate(task_draft.get("context", [])):
             declared = _declared_rank(block)
@@ -301,6 +314,24 @@ async def dispatch_async(
             channel_id=channel_id,
             envelope_id=envelope_id_hint or None,
         ) from exc
+
+    # Trust-ceiling gate (CHAN-01/CHAN-03): a single over-ceiling block blocks
+    # the WHOLE dispatch, fail closed, before anything is signed. Hard-dropped
+    # tier-0 blocks never cross, so they do not count against the ceiling.
+    for effective, block, _content, reason in decisions:
+        if effective > ceiling_rank:
+            raise DispatchError(
+                f"context block (role={block.get('role')!r}) has effective "
+                f"tier-{effective}, above the channel trust ceiling "
+                f"{channel.ceiling!r}; dispatch refused (fail closed)",
+                subcode=DispatchSubcode.POLICY_VIOLATED,
+                stage=2,
+                channel_id=channel_id,
+                envelope_id=envelope_id_hint or None,
+                blocked_block_path=str(block.get("path") or block.get("role") or ""),
+                blocked_tier=f"tier-{effective}",
+                blocked_reason=reason,
+            )
 
     # ---- Step 3: shadow tier-1 content blocks --------------------------------
     # Raw tier-1 content is replaced by a freshly generated shadow; the raw
