@@ -37,23 +37,24 @@ _CEILING_TO_POLICY_TEMPLATE: dict[str, dict[str, list[str]]] = {
         "strip_before_persist": ["content", "raw_output"],
     },
     "tier-2": {
-        # Public content can cross. v0.1 template: no field-name restrictions —
+        # Public content can cross. v0.1 template: no field-name restrictions;
         # any forge-declared output is allowed to be persisted/returned. The
         # privacy guarantee at tier-2 is "you knew it was public when you
         # authored the channel; persisting any output named by the forge is
         # within scope". A future v0.2 may add field-name allow-lists when
         # output_contract types stabilize.
         #
-        # An earlier draft surfaced a placeholder ``["public_outputs"]``
-        # allow-list, which combined with the v0.1 derivation rule
-        # (persisted_fields = outputs.keys when forge omits the explicit field)
-        # caused tier-2 happy-path dispatches against real forges (pi-forge
+        # Permissiveness is opted into EXPLICITLY with the "*" wildcard.
+        # Empty allow-lists mean "nothing may cross" (fail closed), so tier-2
+        # cannot rely on an empty list to mean "no restriction". An earlier
+        # draft surfaced a placeholder ``["public_outputs"]`` allow-list,
+        # which combined with the v0.1 derivation rule (persisted_fields =
+        # outputs.keys when forge omits the explicit field) caused tier-2
+        # happy-path dispatches against real forges (pi-forge
         # outputs={"pi", "digits_computed", "algorithm"}; describe-forge
-        # outputs={"descriptions", "note"}) to falsely trip POLICY-03. Empty
-        # lists here mean "no allow-list rule applies"; the conservative
-        # semantics fall through to allowing any forge output at tier-2.
+        # outputs={"descriptions", "note"}) to falsely trip POLICY-03.
         "persist_to_shared": [],
-        "return_only": [],
+        "return_only": ["*"],
         "strip_before_persist": [],
     },
 }
@@ -118,8 +119,11 @@ def compare_result_against_policy(
         (tier-0 channel: nothing crosses). Any non-empty ``persisted_fields`` is a violation.
       - If ``strip_before_persist`` lists specific field names, none of those fields may
         appear in ``persisted_fields``.
-      - If ``return_only`` is non-empty, all fields in ``returned_fields`` must be in the
-        union of return_only ∪ persist_to_shared (the "allowed return set").
+      - ``returned_fields`` must ALWAYS be a subset of return_only ∪ persist_to_shared
+        (the "allowed return set"). An EMPTY allowed return set means the forge may
+        return NOTHING (fail closed); tier-0 authors return_only=[] with exactly that
+        meaning. A "*" entry in the allowed return set means returns are unrestricted
+        (tier-2 opts in explicitly).
       - If ``persist_to_shared`` is non-empty, every field in ``persisted_fields`` must be
         in the ``persist_to_shared`` list.
 
@@ -142,13 +146,14 @@ def compare_result_against_policy(
         if stripped_field in persisted_fields:
             return False  # named field was persisted despite strip directive
 
-    # Rule: if return_only is set, returned_fields must be a subset of allowed.
-    if authored_policy.return_only:
-        allowed_return = (
-            set(authored_policy.return_only) | set(authored_policy.persist_to_shared)
-        )
-        if returned_fields - allowed_return:
-            return False  # returned a field outside the allowed union
+    # Rule: returned_fields must ALWAYS be a subset of the allowed return set.
+    # An empty allowed set means "return nothing" (tier-0 fail-closed, MED 5);
+    # a "*" entry means unrestricted (tier-2 opts in explicitly).
+    allowed_return = (
+        set(authored_policy.return_only) | set(authored_policy.persist_to_shared)
+    )
+    if "*" not in allowed_return and returned_fields - allowed_return:
+        return False  # returned a field outside the allowed set (or set is empty)
 
     # Rule: if persist_to_shared is set, persisted_fields must be a subset.
     if authored_policy.persist_to_shared:

@@ -9,8 +9,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-import pytest
-
 from photophore.channels._types import Channel
 from photophore.core import ChannelId, ChannelState
 from photophore.policy import ResultPolicy, author, compare_result_against_policy
@@ -56,6 +54,33 @@ class TestCompareResultViolation:
 
         compliant_result = {"persisted_fields": [], "returned_fields": []}
         assert compare_result_against_policy(compliant_result, policy) is True
+
+    def test_tier0_violation_any_returned_field(self) -> None:
+        """tier-0: return_only=[] means return NOTHING; raw content in the
+        response body is a violation, not "no restriction" (MED 5)."""
+        channel = _make_channel("tier-0")
+        draft = _load_draft("task-draft.json")
+        policy = author(channel, draft)
+        assert policy.return_only == []
+
+        violating_result = {
+            "persisted_fields": [],
+            "returned_fields": ["content"],  # raw content returned on a tier-0 channel
+        }
+        assert compare_result_against_policy(violating_result, policy) is False, (
+            "tier-0 return_only=[] must reject ANY returned field (fail closed)"
+        )
+
+    def test_tier2_returns_remain_permissive_via_wildcard(self) -> None:
+        """tier-2 opts in to unrestricted returns EXPLICITLY (wildcard), so the
+        empty-list fail-closed semantics cannot silently open other tiers."""
+        channel = _make_channel("tier-2")
+        draft = _load_draft("task-draft.json")
+        policy = author(channel, draft)
+        assert "*" in policy.return_only
+
+        result = {"persisted_fields": [], "returned_fields": ["pi", "digits_computed"]}
+        assert compare_result_against_policy(result, policy) is True
 
     def test_tier1_violation_returned_outside_shadow_refs(self) -> None:
         """tier-1: return_only=["shadow_refs"]; returning raw_output is a violation."""
