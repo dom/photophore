@@ -1,15 +1,21 @@
-"""Policy-violated E2E test — POLICY-03 closure.
+"""Policy-violated E2E test, POLICY-03 closure.
 
 describe-forge returns a result whose ``outputs`` contains keys that, under
-the v0.1 derivation rule, count as persisted_fields. Under a tier-0 channel
-ceiling the policy template forbids any persistence — so the result violates
-the authored ResultPolicy and dispatch must raise POLICY_VIOLATED.
+the derivation rule, count as returned/persisted fields. Under a tier-1
+channel ceiling the authored policy allows only ``shadow_refs`` to return,
+so the result violates the authored ResultPolicy and dispatch must raise
+POLICY_VIOLATED at step 8b.
 
-# v0.1 derivation: persisted_fields = list(result["outputs"].keys());
-#                  returned_fields  = list(result["outputs"].keys())
+# derivation: persisted_fields = list(result["outputs"].keys());
+#             returned_fields  = list(result["outputs"].keys())
 Forges that omit explicit ``persisted_fields`` / ``returned_fields`` get the
 conservative derivation from outputs. The dispatch coordinator applies this
 rule at step 8b when the forge response does not surface those fields.
+
+(The tier-0 construction used before the coordinator's trust-ceiling gate
+landed is no longer reachable end-to-end: a tier-1 shadow block on a tier-0
+channel is now refused at stage 2, before signing, and describe-forge
+refuses zero-shadow envelopes.)
 """
 from __future__ import annotations
 
@@ -61,23 +67,23 @@ def _seed_channel(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("subprocess_forge", ["describe-forge"], indirect=True)
-async def test_policy_violated_e2e_describe_forge_tier0_channel(
+async def test_policy_violated_e2e_describe_forge_tier1_channel(
     subprocess_forge: ForgeHandle,
     sovereign_provider: tuple[Any, Any, str, bytes],
     tmp_path: Path,
 ) -> None:
-    """Tier-0 channel + describe-forge response with non-empty outputs.
+    """Tier-1 channel + describe-forge response with disallowed output fields.
 
-    Concrete construction: channel ceiling=tier-0 produces ResultPolicy
-    ``persist_to_shared=[]``, ``return_only=[]``, ``strip_before_persist=["*"]``
-    per the policy template. describe-forge's response has
-    ``outputs={"descriptions": [...], "note": None}`` — non-empty. Under the
-    v0.1 derivation rule, ``persisted_fields = list(outputs.keys())
-    = ["descriptions", "note"]``. The tier-0 policy says NOTHING may be
-    persisted (the "*" wildcard) — violation. POLICY-03 closure.
+    Concrete construction: channel ceiling=tier-1 produces a ResultPolicy
+    that allows only ``shadow_refs`` to return. describe-forge's response has
+    ``outputs={"descriptions": [...], "note": ...}``. Under the derivation
+    rule, ``returned_fields = list(outputs.keys()) = ["descriptions",
+    "note"]``, which is outside the tier-1 allow set: violation. POLICY-03
+    closure at step 8b, AFTER a valid dispatch (a tier-1 shadow block is
+    within the tier-1 ceiling).
 
-    # v0.1 derivation: persisted_fields = list(result["outputs"].keys());
-    #                  returned_fields  = list(result["outputs"].keys())
+    # derivation: persisted_fields = list(result["outputs"].keys());
+    #             returned_fields  = list(result["outputs"].keys())
     """
     forge = subprocess_forge
     provider, verifier, sov_identity, sov_pubkey = sovereign_provider
@@ -97,7 +103,7 @@ async def test_policy_violated_e2e_describe_forge_tier0_channel(
     _seed_channel(
         store,
         channel_id=channel_id,
-        ceiling="tier-0",  # tier-0: strip_before_persist=["*"]; NOTHING may be persisted.
+        ceiling="tier-1",  # tier-1: only shadow_refs may return; forge outputs violate.
         remote_node=forge.identity,
         local_node=sov_identity,
     )
@@ -115,6 +121,9 @@ async def test_policy_violated_e2e_describe_forge_tier0_channel(
             "type": "shadow.describe",
             "instruction": "Produce templated descriptions.",
         },
+        # One tier-1 shadow block: within the tier-1 ceiling, so the
+        # coordinator's trust-ceiling gate lets the dispatch proceed and the
+        # violation is caught at step 8b from the forge's returned fields.
         "context": [
             {
                 "tier": 1,
@@ -122,6 +131,7 @@ async def test_policy_violated_e2e_describe_forge_tier0_channel(
                 "shadow": {
                     "shadow_id": "test-s1",
                     "content_type": "document",
+                    "abstraction": "document of length class short",
                     "relevance": 0.5,
                 },
             }
