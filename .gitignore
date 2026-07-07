@@ -23,5 +23,6 @@ venv/
 .planning/
 memory/
 AGENTS.md
+.claude/
 CHANGE.md
 **/CHANGE.md
