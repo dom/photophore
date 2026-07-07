@@ -19,7 +19,7 @@ from typing import Any
 
 import click
 
-from ..audit._store import AuditLog
+from ..audit import open_audit_log
 from ._audit_decorator import audit_cli_invocation
 from ._errors import AuditIntegrityError, KeystoreError
 from ._format import emit_human_audit_entry, emit_human_audit_header, emit_json_document, emit_json_lines
@@ -61,7 +61,7 @@ def query(
     # Ensure the audit.db parent directory exists.
     Path(audit_db).parent.mkdir(parents=True, exist_ok=True)
 
-    log = AuditLog(audit_db)
+    log = open_audit_log(audit_db)
     filters: dict[str, Any] = {}
     if channel_id is not None:
         filters["channel_id"] = channel_id
@@ -102,7 +102,7 @@ def export(ctx: click.Context) -> None:
     output_json = ctx.obj["json"]
 
     Path(audit_db).parent.mkdir(parents=True, exist_ok=True)
-    log = AuditLog(audit_db)
+    log = open_audit_log(audit_db)
 
     rows = list(log.export())
     if output_json:
@@ -133,7 +133,7 @@ def verify(ctx: click.Context) -> None:
     output_json = ctx.obj["json"]
 
     Path(audit_db).parent.mkdir(parents=True, exist_ok=True)
-    log = AuditLog(audit_db)
+    log = open_audit_log(audit_db)
     ok, detail = log.verify_chain()
 
     if ok:

@@ -19,7 +19,7 @@ from typing import Any
 
 import click
 
-from ..audit import AuditLog
+from ..audit import open_audit_log
 from ..channels import ChannelStore
 from ..dispatch import DispatchError, dispatch_async
 from ._audit_decorator import audit_cli_invocation
@@ -52,7 +52,7 @@ def dispatch_command(
     channels_db = ctx.obj["channels_db"]
     draft: dict[str, Any] = json.loads(task_path.read_text())
 
-    audit_log = AuditLog(audit_db)
+    audit_log = open_audit_log(audit_db)
     channel_store = ChannelStore(channels_db, audit_log)
 
     # IdentityProvider + Verifier wiring — sovereign brine adapter from thermocline-py.

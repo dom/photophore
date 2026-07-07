@@ -25,7 +25,7 @@ from typing import Any, Iterator
 
 from ..core import KNOWN_EVENT_TYPES, AuditEventType
 from ..errors import AuditChainBrokenError, AuditWriteError
-from ._anchor import AnchorTarget, NullAnchor
+from ._anchor import AnchorTarget, HeadAnchor, NullAnchor
 from ._chain import ALGO_VERSION_DEFAULT, compute_entry_hash, verify_entry_hash
 from ._schema import connect, init
 from ._types import AuditEntry, from_dict
@@ -80,11 +80,22 @@ class AuditLog:
     as channels.db or any other database — D-04 three-store model.
     """
 
-    def __init__(self, path: Path | str, *, anchor: AnchorTarget | None = None) -> None:
+    def __init__(
+        self,
+        path: Path | str,
+        *,
+        anchor: AnchorTarget | None = None,
+        head_anchor: HeadAnchor | None = None,
+    ) -> None:
         self._path = str(path)
         self._conn = connect(self._path)
         init(self._conn)
         self._anchor: AnchorTarget = anchor if anchor is not None else NullAnchor()
+        # Out-of-band head record for tail-truncation detection (see
+        # _anchor.HeadAnchor). None = bare Ring-1 chain: tail truncation is
+        # then NOT detectable; that residual is documented on the Protocol
+        # and pinned by tests/at_negative/test_at_a6_audit_log_tamper.py.
+        self._head_anchor: HeadAnchor | None = head_anchor
 
     @property
     def path(self) -> str:
@@ -163,6 +174,22 @@ class AuditLog:
                 f"audit log rejected write (append-only violation or constraint): {exc}",
                 code="AUDIT_WRITE_FAILED",
             ) from exc
+        # Head anchor: persist the new head hash + entry count out-of-band so
+        # verify_chain() can detect tail truncation. Failure to update the
+        # anchor is surfaced (fail closed): the entry IS committed (append-only,
+        # no rollback), but the caller must know the anchor is now stale;
+        # verify_chain() will report the mismatch until the anchor catches up.
+        if self._head_anchor is not None:
+            count = int(
+                self._conn.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
+            )
+            try:
+                self._head_anchor.set(entry.entry_hash, count)
+            except Exception as exc:  # noqa: BLE001 — any backend failure
+                raise AuditWriteError(
+                    f"audit entry committed but head anchor update failed: {exc}",
+                    code="AUDIT_HEAD_ANCHOR_FAILED",
+                ) from exc
         # AUDIT-07: anchor side-effect (NullAnchor.anchor returns None — no-op default).
         self._anchor.anchor(entry)
         return entry
@@ -270,12 +297,18 @@ class AuditLog:
             (False, broken_at)  — chain broken; broken_at is the id of the
                                   first invalid entry.
 
-        Checks both:
+        Checks all of:
         - per-entry hash: verify_entry_hash(row) recomputes blake3(canonicalize(row minus hash))
         - prev_hash chain: each entry's prev_hash must equal the prior entry's entry_hash
+        - head anchor (when configured): the walked head hash + entry count
+          must match the out-of-band record updated on every append. This is
+          what makes TAIL truncation detectable; without a head anchor a
+          truncated chain still verifies (Ring-1 residual, see
+          _anchor.HeadAnchor).
         """
         prev = ""
         last_hash = ""
+        walked = 0
         for row in self._query_rows():
             if row["prev_hash"] != prev:
                 return False, str(row["id"])
@@ -283,6 +316,17 @@ class AuditLog:
                 return False, str(row["id"])
             prev = str(row["entry_hash"])
             last_hash = str(row["entry_hash"])
+            walked += 1
+        if self._head_anchor is not None:
+            expected = self._head_anchor.get()
+            if expected is not None:
+                expected_head, expected_count = expected
+                if expected_head != last_hash or expected_count != walked:
+                    return False, (
+                        f"head-anchor mismatch: expected head {expected_head!r} "
+                        f"over {expected_count} entries, walked {last_hash!r} "
+                        f"over {walked} (possible tail truncation)"
+                    )
         return True, last_hash if last_hash else None
 
     def export(self) -> Iterator[dict[str, Any]]:

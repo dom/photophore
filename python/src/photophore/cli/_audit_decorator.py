@@ -27,7 +27,7 @@ import blake3
 import click
 
 from ..audit._cli_invocation import append_cli_invocation
-from ..audit._store import AuditLog
+from ..audit import open_audit_log
 
 __all__ = ["audit_cli_invocation", "_sanitize_args"]
 
@@ -175,7 +175,7 @@ def audit_cli_invocation(subcommand: str) -> Callable[[F], F]:
             if audit_db_path:
                 try:
                     Path(audit_db_path).parent.mkdir(parents=True, exist_ok=True)
-                    audit_log = AuditLog(audit_db_path)
+                    audit_log = open_audit_log(audit_db_path)
                     # Fetch the most recent entry's timestamp, then build a
                     # strictly-later one.
                     rows = list(audit_log._query_rows())

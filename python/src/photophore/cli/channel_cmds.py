@@ -28,7 +28,7 @@ import click
 # entry is keyed on the file path `photophore/cli/channel_cmds.py`.
 import httpx
 
-from ..audit._store import AuditLog
+from ..audit import AuditLog, open_audit_log
 from ..channels._store import ChannelStore, _channel_to_dict
 from ..channels._types import Channel
 from ..core import AuditEventType, ChannelId, ChannelState
@@ -58,7 +58,7 @@ def _open_store(ctx: click.Context) -> tuple[AuditLog, ChannelStore]:
     channels_db = ctx.obj["channels_db"]
     Path(audit_db).parent.mkdir(parents=True, exist_ok=True)
     try:
-        log = AuditLog(audit_db)
+        log = open_audit_log(audit_db)
         store = ChannelStore(channels_db, log)
     except KeystoreUnavailableError as exc:
         raise CliKeystoreError(str(exc)) from exc
