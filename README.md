@@ -2,10 +2,10 @@
 
 ### A Zero-Trust Context Membrane and Shadow Protocol for Distributed AI Nodes
 
-**Version:** 0.3.0-draft
+**Version:** 0.4.0
 **Status:** RFC — Pre-release, seeking feedback
 **License:** MIT
-**Depends on:** Thermocline 0.3.0+
+**Depends on:** Thermocline 0.4.0+
 
 ---
 
@@ -35,9 +35,11 @@ Photophore is a **zero-trust context membrane** that runs on the originating nod
 - Maintains a registry of trusted channels and their trust ceilings
 - Classifies all local content against a three-tier privacy model
 - Generates shadows for content that may not cross a boundary raw
-- Authors `result_policy` blocks for outgoing Thermocline task and job envelopes
-- For `job` envelopes: classifies and shadows context at the per-step level during
-  manifest authorship, before dispatch
+- Authors `result_policy` blocks for outgoing Thermocline task envelopes
+- For `job` envelopes (UNIMPLEMENTED, deferred to v0.2 of the spec roadmap):
+  classifies and shadows context at the per-step level during manifest
+  authorship, before dispatch. The 0.4.0 implementation ships task envelopes
+  only; no job or per-step-shadowing surface exists yet.
 - Delegates signing to the identity provider (see Thermocline Identity Provider Interface)
 - Verifies incoming result signatures from receiving nodes
 - Maintains an append-only, cryptographically chained audit log of all boundary
@@ -88,6 +90,10 @@ Trust Score    ←  Audit Log
 **The Audit Log** answers: *what did I actually do?*
 
 Without the audit log, the first two are claims. With it, they are provable.
+
+> **Status (0.4.0):** the Channel Store and Audit Log pillars are implemented.
+> The Trust Score pillar is specified below but UNIMPLEMENTED; it is deferred
+> (spec roadmap v0.3 scope, no scoring code ships in this release).
 
 ### Channels
 
@@ -284,6 +290,11 @@ For `job` envelopes, shadow generation occurs **per step**, during manifest
 authorship on the issuer node — before the job is dispatched. Photophore processes
 each step's `context[]` block independently.
 
+> **Status (0.4.0): UNIMPLEMENTED.** Job envelopes, manifest authorship, and
+> per-step shadow generation are specification only (roadmap v0.2 scope). The
+> 0.4.0 implementation classifies, shadows, and enforces at the task-envelope
+> level.
+
 **The authorship sequence for a job manifest:**
 
 ```
@@ -318,6 +329,11 @@ it during the manifest authorship sequence (step 4 above), based on:
 ---
 
 ## Trust Score
+
+> **Status (0.4.0): UNIMPLEMENTED.** This section is normative specification
+> for a future release (roadmap v0.3 scope). No trust-score computation,
+> storage, decay, or threshold action ships in the 0.4.0 implementation;
+> nothing below is enforced at runtime today.
 
 The trust score is a living signal derived from the audit log — not a static
 configuration. It answers: *how well is this channel performing against its
@@ -548,14 +564,23 @@ tampering. This is outside Photophore's threat boundary.
 unauthorized dispatches or trust store changes.
 *Mitigation:*
 - The audit log is cryptographically chained: each entry hashes the previous.
-  Modifying any entry invalidates all subsequent entries.
-- Ring 2 (shared channel ledger) provides an independent copy that neither party
-  can unilaterally modify.
-- Ring 3 (blockchain-anchored hash) provides an irrefutable external timestamp.
-*Residual:* An attacker who compromises the sovereign node can append new entries
-to the chain (legitimate operation) but cannot remove or modify existing ones
-without breaking the chain. Starting a new chain is detectable (the chain head
-changes). Ring 2 and Ring 3 provide independent verification.
+  Modifying or deleting any INTERIOR entry invalidates all subsequent entries.
+- Tail truncation (deleting the newest entries, which leaves a shorter but
+  still-valid prefix chain) is detected as of 0.4.0 via an out-of-band head
+  anchor: the expected head hash and entry count are persisted in the platform
+  keystore on every append, and `verify_chain` compares against them.
+- The chain is verified in true append order (rowid), so equal or
+  attacker-chosen timestamps cannot reorder the verification walk.
+- Ring 2 (shared channel ledger) and Ring 3 (blockchain-anchored hash) are
+  specified as independent copies/timestamps but are UNIMPLEMENTED in 0.4.0.
+*Residual:* Stated honestly for 0.4.0: tail truncation is detectable ONLY when
+the head anchor is configured; a bare Ring-1 chain without the anchor still
+verifies after truncation. The anchor lives in the same platform keystore as
+the trust store, so an attacker with keystore write access can truncate the
+log AND rewrite the anchor consistently; keystore compromise remains outside
+the threat boundary (as in AT-A5). An attacker who compromises the sovereign
+node can also append new, well-formed entries (a legitimate operation).
+Independent Ring 2/Ring 3 verification remains future work.
 
 ### Residual Risks — Accepted by Design
 
@@ -709,6 +734,27 @@ See [docs/adr/index.md](docs/adr/index.md) for status + dates.
 ---
 
 ## Changelog
+
+### 0.4.0
+- Security hardening release (review findings), aligned with Thermocline 0.4.0:
+  the coordinator strips tier-0 content and shadows tier-1 before signing,
+  enforces the channel trust ceiling against block tiers, and signs envelopes
+  per the SP-3.3 wire contract
+- Embedded `@photophore:` tags parsed from content bytes may only LOWER a
+  block's tier, never raise it above the path-rule/classifier assignment
+  (closes the AT-A3 self-promotion evasion)
+- Result policies fail closed: tier-0 `return_only=[]` now means "return
+  nothing", and tier-1 persistence is an allow-list of shadow-reference field
+  names; tier-2 opts in to permissiveness with an explicit `"*"` wildcard
+- Audit log: appends are serialized (no chain forks under concurrency), the
+  chain is verified in true append order (rowid, not timestamp), and tail
+  truncation is detected via an out-of-band head anchor
+- Dispatch-time classification loads the configured path rules
+  (`photophore dispatch --rules`, with the D-09 default location fallback)
+- Honest status markers: the Trust Score pillar and the job/per-step-shadowing
+  surface are explicitly UNIMPLEMENTED (deferred); AT-A6 residual restated
+  (truncation detection requires the head anchor)
+- Dependency: Thermocline 0.4.0+
 
 ### 0.3.0
 - Added Threat Model section — six attack surfaces (compromised sovereign node,

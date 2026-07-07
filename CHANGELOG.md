@@ -4,6 +4,60 @@ All notable changes to Photophore are documented here. The format is a lite
 variant of [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); semantic
 versioning per [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-07
+
+Security-hardening release driven by the zero-trust review findings; version
+aligned with the Thermocline 0.4.0 contract (see README inline changelog
+§0.4.0 for the spec-facing summary).
+
+### Security
+
+- Dispatch coordinator enforces classification before signing: tier-0 blocks
+  are hard-dropped (raw bytes never reach the wire) and tier-1 blocks cross
+  only as freshly generated shadows.
+- Channel trust ceiling is enforced against effective block tiers; a single
+  over-ceiling block aborts the dispatch (fail closed), and an unknown
+  ceiling string refuses to dispatch.
+- Envelopes are signed per the SP-3.3 wire contract (thermocline 0.4.0
+  `sign_envelope` / `verify_envelope`).
+- Embedded `@photophore:(local|shared|public)` tags are parsed from untrusted
+  content bytes and may only LOWER a block's tier, never raise it above the
+  path-rule/classifier assignment (AT-A3 classifier-evasion fix);
+  `@photophore:public` inside a `~/Private/**` secret stays local.
+- Result policies fail closed: tier-0 `return_only=[]` means "return
+  nothing" (any returned field is a POLICY-03 violation), and tier-1
+  persistence is an allow-list of shadow-reference field names (unknown
+  names are rejected; the old content/raw_output name-blacklist remains as
+  defense in depth). Tier-2 keeps its permissive v0.1 template by opting in
+  explicitly with a `"*"` wildcard.
+- Audit tail truncation is detected via an out-of-band head anchor
+  (expected head hash + entry count in the platform keystore, updated on
+  every append and checked by `verify_chain`). Residual: detection requires
+  the anchor; a bare Ring-1 chain without it still verifies after
+  truncation, and keystore compromise defeats the anchor (outside the
+  threat boundary).
+- `AuditLog.append()` serializes its read-then-write with a lock; concurrent
+  appends can no longer fork the chain.
+
+### Fixed
+
+- Audit chain verification, query, and export walk entries by `rowid`
+  (true append order) instead of timestamp; same-millisecond bursts and
+  caller-supplied timestamps no longer scramble or reorder the walk
+  (closes the 0.1.0 "timestamp ordering quirk" known limitation).
+- `photophore dispatch` loads path rules for dispatch-time classification
+  (new `--rules` flag; D-09 default location fallback), so enforcement and
+  warnings see the same rules as `photophore classify`.
+
+### Changed
+
+- Dependency: `thermocline>=0.4.0` (ContentBlock rejects raw tier-0 content
+  and requires tier-1 to be shadow-only).
+- Package version 0.4.0 (`pyproject.toml`, `photophore.version`).
+- README: version banner 0.4.0; Trust Score pillar and job/per-step
+  shadow generation explicitly marked UNIMPLEMENTED (deferred); AT-A6
+  mitigation/residual restated honestly.
+
 ## [0.1.0] - 2026-05-13
 
 ### Added
