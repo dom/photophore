@@ -3,8 +3,13 @@
 The 9 steps (Photophore spec §"Dispatch"):
 
   1. resolve channel + AT-A1 key_scheme guard
-  2. classify each context[] block (provenance collected for audit-pre)
-  3. shadow tier-1 blocks (irreversibility hard fail surfaces as SHADOW_GENERATION_FAILED)
+  2. classify each context[] block and ENFORCE the result: hard-drop
+     tier-0 (local) blocks, reject any block whose effective tier exceeds
+     the channel trust ceiling (fail closed, before signing)
+  3. shadow tier-1 blocks: raw tier-1 content is replaced by a freshly
+     generated shadow (irreversibility hard fail surfaces as
+     SHADOW_GENERATION_FAILED); a fail-closed backstop then re-checks that
+     no raw local content survived enforcement
   4. policy.author() — issuer-authored ResultPolicy
   5. audit-pre — abort gate (DISP-02: failure here means signing/transport never run)
   6. sign the outgoing envelope (canonical-JSON input, DISP-04)
@@ -27,20 +32,126 @@ from thermocline import canonicalize  # noqa: F401 — DISP-04 signing-input pat
 from thermocline.identity import Signature
 from thermocline.schemes import KeyScheme
 
+from ..audit import AuditLog
+from ..channels import ChannelStore
+from ..channels._types import Channel
+from ..classifier import PathRules, classify
+from ..core import ChannelId, ChannelState, Tier
+from ..shadow import ContentType
 from ._aio import (
     audit_append_async,
     channel_show_async,
     policy_author_async,
     policy_compare_async,
+    shadow_generate_async,
 )
 from ._errors import DispatchError, DispatchSubcode
 from ._transport import send_async
-from ..audit import AuditLog
-from ..channels import ChannelStore
-from ..channels._types import Channel
-from ..core import ChannelId, ChannelState
 
 __all__ = ["dispatch_async", "DispatchOutcome"]
+
+# Tier vocabulary shared by channel ceilings ("tier-0".."tier-2") and content
+# blocks (integer 0..2 or the same strings). Rank 0 (local) is the most
+# restrictive: local content never crosses; rank 2 (public) crosses raw.
+_CEILING_RANK: dict[str, int] = {"tier-0": 0, "tier-1": 1, "tier-2": 2}
+
+_RANK_BY_TIER: dict[Tier, int] = {Tier.LOCAL: 0, Tier.SHARED: 1, Tier.PUBLIC: 2}
+
+_RANK_BY_NAME: dict[str, int] = {"local": 0, "shared": 1, "public": 2}
+
+_CONTENT_TYPE_BY_NAME: dict[str, ContentType] = {ct.value: ct for ct in ContentType}
+
+
+def _declared_rank(block: dict[str, Any]) -> int | None:
+    """Parse the issuer-declared tier of a context block, or None if absent.
+
+    Accepts the integer wire form (0 | 1 | 2), the "tier-N" strings used by
+    channel ceilings, and the tier names ("local" | "shared" | "public").
+    Anything else is treated as undeclared (fail closed at the call site).
+    """
+    raw = block.get("tier")
+    if isinstance(raw, bool):  # bool is an int subclass; refuse it explicitly
+        return None
+    if isinstance(raw, int):
+        return raw if raw in (0, 1, 2) else None
+    if isinstance(raw, str):
+        if raw in _CEILING_RANK:
+            return _CEILING_RANK[raw]
+        return _RANK_BY_NAME.get(raw.lower())
+    return None
+
+
+def _content_bytes(content: Any) -> bytes:
+    """Normalize a block's content field to bytes for classification."""
+    if isinstance(content, str):
+        return content.encode("utf-8")
+    if isinstance(content, (bytes, bytearray)):
+        return bytes(content)
+    return b""
+
+
+def _effective_rank(
+    declared: int | None, classification_tier: Tier, classification_reason: str
+) -> int:
+    """Combine issuer declaration with classification, fail closed.
+
+    The classifier can only LOWER a block's tier, never raise it: an
+    affirmative signal (explicit tag, path rule, classifier rule match)
+    caps the declared tier at the classified tier. ``classifier:default``
+    carries no affirmative signal, so a deliberate issuer declaration
+    stands; an UNDECLARED block falls back to the classification (which
+    defaults to local, so it is dropped).
+    """
+    classified = _RANK_BY_TIER[classification_tier]
+    if declared is None:
+        return classified
+    if classification_reason == "classifier:default":
+        return declared
+    return min(declared, classified)
+
+
+def _assert_context_fail_closed(
+    context: list[dict[str, Any]],
+    *,
+    rules: PathRules | None,
+    channel_id: str,
+    envelope_id: str | None,
+) -> None:
+    """Fail-closed backstop: abort if any raw local content survived enforcement.
+
+    Runs over the ALREADY-ENFORCED context that is about to be signed. It is
+    an independent re-check, not a re-implementation of the enforcement pass:
+    any block that still carries raw content must be issuer-declared tier-2
+    AND must not classify local/shared via an affirmative signal.
+    """
+    for idx, block in enumerate(context):
+        content = block.get("content")
+        if content is None:
+            continue
+        declared = _declared_rank(block)
+        if declared is None or declared < 2:
+            raise DispatchError(
+                f"fail-closed backstop: context block #{idx} carries raw content "
+                f"below tier-2 (declared tier {block.get('tier')!r}); "
+                f"local content never crosses",
+                subcode=DispatchSubcode.CLASSIFICATION_FAILED,
+                stage=3,
+                channel_id=channel_id,
+                envelope_id=envelope_id,
+            )
+        result = classify(_content_bytes(content), path=block.get("path"), rules=rules)
+        if result.reason != "classifier:default" and result.tier is not Tier.PUBLIC:
+            raise DispatchError(
+                f"fail-closed backstop: context block #{idx} carries raw content "
+                f"classified {result.tier.value!r} ({result.reason}); "
+                f"it must not be signed or transmitted",
+                subcode=DispatchSubcode.CLASSIFICATION_FAILED,
+                stage=3,
+                channel_id=channel_id,
+                envelope_id=envelope_id,
+                blocked_tier=result.tier.value,
+                blocked_reason=result.reason,
+            )
 
 
 @dataclass(frozen=True)
@@ -98,6 +209,7 @@ async def dispatch_async(
     identity_provider: Any,  # BrineProvider | duck-typed IdentityProvider
     verifier: Any,  # thermocline.identity.Verifier
     forge_url: str,
+    rules: PathRules | None = None,
 ) -> DispatchOutcome:
     """Execute the 9-step dispatch flow and return a DispatchOutcome on success.
 
@@ -140,23 +252,47 @@ async def dispatch_async(
             envelope_id=envelope_id_hint or None,
         )
 
-    # ---- Step 2: classify each context[] block (AT-A1 provenance carry-forward) ----
+    # ---- Step 2: classify each context[] block and ENFORCE the result --------
+    # Enforcement lives HERE, in the coordinator: the caller-supplied draft is
+    # untrusted. Classification can only LOWER a block's tier. tier-0 blocks
+    # are hard-dropped; blocks above the channel ceiling abort the dispatch
+    # (fail closed) before anything is signed.
     classifier_reasons: list[str] = []
+    warnings: list[str] = []
+    # Each decision is (effective_rank, block, content_bytes_or_None, reason).
+    decisions: list[tuple[int, dict[str, Any], bytes | None, str]] = []
     try:
-        for block in task_draft.get("context", []):
+        for idx, block in enumerate(task_draft.get("context", [])):
+            declared = _declared_rank(block)
             content = block.get("content")
-            if content is None:
+            if content is not None:
+                content_bytes = _content_bytes(content)
+                # Sync call kept lightweight; the asyncio.to_thread shim wraps
+                # the heavier classifier path in callers that prefer concurrency.
+                classification = classify(
+                    content_bytes, path=block.get("path"), rules=rules
+                )
+                classifier_reasons.append(classification.reason)
+                effective = _effective_rank(
+                    declared, classification.tier, classification.reason
+                )
+                reason = classification.reason
+            else:
+                # No raw content: nothing to classify. The declared tier
+                # stands; an undeclared block defaults to local (dropped).
+                content_bytes = None
+                effective = declared if declared is not None else 0
+                reason = "declared" if declared is not None else "undeclared:default_local"
+            if effective <= 0:
+                warnings.append(
+                    f"stripped tier-0 context block #{idx} "
+                    f"(role={block.get('role')!r}, reason={reason}); "
+                    f"local content never crosses"
+                )
                 continue
-            content_bytes = (
-                content.encode("utf-8")
-                if isinstance(content, str)
-                else bytes(content) if isinstance(content, (bytes, bytearray)) else b""
-            )
-            # Sync call kept lightweight; the asyncio.to_thread shim wraps the
-            # heavier classifier path in callers that prefer concurrency.
-            from ..classifier import classify
-            result = classify(content_bytes, path=block.get("path"))
-            classifier_reasons.append(result.reason)
+            decisions.append((effective, block, content_bytes, reason))
+    except DispatchError:
+        raise
     except Exception as exc:
         raise DispatchError(
             f"classification failed: {exc}",
@@ -167,17 +303,58 @@ async def dispatch_async(
         ) from exc
 
     # ---- Step 3: shadow tier-1 content blocks --------------------------------
+    # Raw tier-1 content is replaced by a freshly generated shadow; the raw
+    # bytes (and any local path) never reach the outgoing envelope.
     shadow_ids: list[str] = []
-    shadow_warnings: list[str] = []
+    enforced_context: list[dict[str, Any]] = []
     try:
-        for block in task_draft.get("context", []):
-            if block.get("tier") == "tier-1" and block.get("kind") == "shadow":
-                # If the envelope already carries a shadow_id, preserve it;
-                # otherwise the executor caller is responsible for shadow
-                # generation upstream. v0.1 does not regenerate shadows here.
-                sid = block.get("shadow_id")
-                if sid is not None:
-                    shadow_ids.append(str(sid))
+        for effective, block, content_bytes, _reason in decisions:
+            if effective == 1:
+                if content_bytes is not None:
+                    ct = _CONTENT_TYPE_BY_NAME.get(
+                        str(block.get("content_type") or ""), ContentType.DOCUMENT
+                    )
+                    shadow_result = await shadow_generate_async(content_bytes, ct)
+                    warnings.extend(shadow_result.warnings)
+                    shadow = shadow_result.shadow
+                    shadow_ids.append(shadow.shadow_id)
+                    new_block = {
+                        k: v
+                        for k, v in block.items()
+                        if k not in ("content", "content_type", "path", "shadow_id")
+                    }
+                    new_block["tier"] = 1
+                    new_block["kind"] = "shadow"
+                    new_block["shadow"] = {
+                        "shadow_id": shadow.shadow_id,
+                        "content_type": shadow.content_type.value,
+                        "abstraction": shadow.abstraction,
+                        "relevance": shadow.relevance,
+                    }
+                    enforced_context.append(new_block)
+                else:
+                    # Already shadow-only: preserve, record its shadow_id.
+                    shadow_field = block.get("shadow")
+                    sid = (
+                        shadow_field.get("shadow_id")
+                        if isinstance(shadow_field, dict)
+                        else block.get("shadow_id")
+                    )
+                    if sid is not None:
+                        shadow_ids.append(str(sid))
+                    enforced_context.append(dict(block))
+            else:  # effective == 2: public content crosses raw
+                enforced_context.append(dict(block))
+        # Fail-closed backstop: independently re-check that no raw local
+        # content survived enforcement before the envelope is signed.
+        _assert_context_fail_closed(
+            enforced_context,
+            rules=rules,
+            channel_id=channel_id,
+            envelope_id=envelope_id_hint or None,
+        )
+    except DispatchError:
+        raise
     except Exception as exc:
         raise DispatchError(
             f"shadow generation failed: {exc}",
@@ -204,7 +381,10 @@ async def dispatch_async(
     pre_payload: dict[str, Any] = {
         "envelope_id": envelope_id_hint or None,
         "remote_node": channel.remote_node,
-        "tier_per_block": [b.get("tier") for b in task_draft.get("context", [])],
+        # Tiers of the ENFORCED (outgoing) context, not the raw draft: the
+        # audit log records what actually crosses the boundary.
+        "tier_per_block": [b.get("tier") for b in enforced_context],
+        "stripped_block_count": len(task_draft.get("context", [])) - len(enforced_context),
         "shadow_ids": shadow_ids,
         "classification_reasons": classifier_reasons,
         "dispatch_signature_hash": None,
@@ -243,6 +423,10 @@ async def dispatch_async(
         # 3. Attach the sig under ``bytes_hex`` (v0.1 wire) — the forge
         #    deep-copies and pops ``sig``+``bytes_hex`` on its verify side.
         signing_input = dict(task_draft)
+        # The ENFORCED context is what gets signed and transmitted. The
+        # caller's draft (with any raw tier-0/tier-1 content) is never
+        # signed; enforcement in steps 2-3 is authoritative.
+        signing_input["context"] = enforced_context
         sig_block_for_sign = dict(signing_input.get("dispatch_signature") or {})
         sig_block_for_sign["scheme"] = "brine"
         sig_block_for_sign["key_scheme"] = "brine"
@@ -429,7 +613,7 @@ async def dispatch_async(
         receipt_signature_hash=receipt.signature_hash,
         pre_audit_hash=pre_audit_hash,
         post_audit_hash=post_audit_hash,
-        warnings=tuple(shadow_warnings),
+        warnings=tuple(warnings),
         result_body=result,
     )
 
