@@ -18,12 +18,13 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
-from ..core import KNOWN_EVENT_TYPES, AuditEventType
+from ..core import KNOWN_EVENT_TYPES
 from ..errors import AuditChainBrokenError, AuditWriteError
 from ._anchor import AnchorTarget, HeadAnchor, NullAnchor
 from ._chain import ALGO_VERSION_DEFAULT, compute_entry_hash, verify_entry_hash
@@ -90,6 +91,11 @@ class AuditLog:
         self._path = str(path)
         self._conn = connect(self._path)
         init(self._conn)
+        # Serializes the read-prev-hash -> INSERT -> head-anchor sequence in
+        # append(). sqlite releases the GIL during C-level calls, so without
+        # this two threads can read the same head hash and both commit,
+        # forking the chain (two entries sharing one prev_hash).
+        self._append_lock = threading.Lock()
         self._anchor: AnchorTarget = anchor if anchor is not None else NullAnchor()
         # Out-of-band head record for tail-truncation detection (see
         # _anchor.HeadAnchor). None = bare Ring-1 chain: tail truncation is
@@ -146,50 +152,57 @@ class AuditLog:
             .isoformat(timespec="milliseconds")
             .replace("+00:00", "Z")
         )
-        prev_hash = self._last_entry_hash()
-        entry_id = str(uuid.uuid4())
-        # Build the entry dict EXCLUDING entry_hash (D-03 domain rule).
-        entry_minus_hash: dict[str, Any] = {
-            "id": entry_id,
-            "algo_version": ALGO_VERSION_DEFAULT,
-            "prev_hash": prev_hash,
-            "event_type": event_type,
-            "channel_id": channel_id,
-            "envelope_id": envelope_id,
-            "timestamp": ts,
-            "payload": payload or {},
-        }
-        entry_hash = compute_entry_hash(entry_minus_hash)
-        entry = AuditEntry(entry_hash=entry_hash, **entry_minus_hash)
-        try:
-            self._conn.execute(
-                "INSERT INTO entries "
-                "(id, algo_version, prev_hash, entry_hash, "
-                "event_type, channel_id, envelope_id, timestamp, payload) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                entry.to_row(),
-            )
-        except sqlite3.IntegrityError as exc:
-            raise AuditWriteError(
-                f"audit log rejected write (append-only violation or constraint): {exc}",
-                code="AUDIT_WRITE_FAILED",
-            ) from exc
-        # Head anchor: persist the new head hash + entry count out-of-band so
-        # verify_chain() can detect tail truncation. Failure to update the
-        # anchor is surfaced (fail closed): the entry IS committed (append-only,
-        # no rollback), but the caller must know the anchor is now stale;
-        # verify_chain() will report the mismatch until the anchor catches up.
-        if self._head_anchor is not None:
-            count = int(
-                self._conn.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
-            )
+        # MED 7: the SELECT-then-INSERT below is a read-then-write race.
+        # sqlite releases the GIL inside C calls, so without serialization two
+        # threads can read the same head hash and both commit, forking the
+        # chain. The lock also keeps the head-anchor update ordered with its
+        # entry so concurrent appends cannot leave the anchor pointing at a
+        # non-head entry.
+        with self._append_lock:
+            prev_hash = self._last_entry_hash()
+            entry_id = str(uuid.uuid4())
+            # Build the entry dict EXCLUDING entry_hash (D-03 domain rule).
+            entry_minus_hash: dict[str, Any] = {
+                "id": entry_id,
+                "algo_version": ALGO_VERSION_DEFAULT,
+                "prev_hash": prev_hash,
+                "event_type": event_type,
+                "channel_id": channel_id,
+                "envelope_id": envelope_id,
+                "timestamp": ts,
+                "payload": payload or {},
+            }
+            entry_hash = compute_entry_hash(entry_minus_hash)
+            entry = AuditEntry(entry_hash=entry_hash, **entry_minus_hash)
             try:
-                self._head_anchor.set(entry.entry_hash, count)
-            except Exception as exc:  # noqa: BLE001 — any backend failure
+                self._conn.execute(
+                    "INSERT INTO entries "
+                    "(id, algo_version, prev_hash, entry_hash, "
+                    "event_type, channel_id, envelope_id, timestamp, payload) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    entry.to_row(),
+                )
+            except sqlite3.IntegrityError as exc:
                 raise AuditWriteError(
-                    f"audit entry committed but head anchor update failed: {exc}",
-                    code="AUDIT_HEAD_ANCHOR_FAILED",
+                    f"audit log rejected write (append-only violation or constraint): {exc}",
+                    code="AUDIT_WRITE_FAILED",
                 ) from exc
+            # Head anchor: persist the new head hash + entry count out-of-band so
+            # verify_chain() can detect tail truncation. Failure to update the
+            # anchor is surfaced (fail closed): the entry IS committed (append-only,
+            # no rollback), but the caller must know the anchor is now stale;
+            # verify_chain() will report the mismatch until the anchor catches up.
+            if self._head_anchor is not None:
+                count = int(
+                    self._conn.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
+                )
+                try:
+                    self._head_anchor.set(entry.entry_hash, count)
+                except Exception as exc:  # noqa: BLE001 any backend failure
+                    raise AuditWriteError(
+                        f"audit entry committed but head anchor update failed: {exc}",
+                        code="AUDIT_HEAD_ANCHOR_FAILED",
+                    ) from exc
         # AUDIT-07: anchor side-effect (NullAnchor.anchor returns None — no-op default).
         self._anchor.anchor(entry)
         return entry

@@ -14,10 +14,9 @@ import blake3
 import pytest
 from thermocline import canonicalize
 
-from photophore.audit import AuditLog, AuditEntry
+from photophore.audit import AuditLog
 from photophore.audit._chain import (
     _HASH_ALGO_REGISTRY,
-    ALGO_VERSION_DEFAULT,
     compute_entry_hash,
     compute_hash_by_version,
     verify_entry_hash,
@@ -127,3 +126,64 @@ def test_compute_entry_hash_refuses_input_with_entry_hash() -> None:
     """compute_entry_hash raises ValueError if entry_hash key is present in input."""
     with pytest.raises(ValueError, match="refuses input"):
         compute_entry_hash({"entry_hash": "should-not-be-here", "id": "x"})
+
+
+# ---------------------------------------------------------------------------
+# MED 7: append() read-then-write must be serialized (threading.Lock).
+# sqlite releases the GIL during C-level calls, so two threads can both read
+# the same head hash and INSERT siblings, forking the chain.
+
+
+def test_concurrent_appends_do_not_fork_chain(tmp_path) -> None:
+    """Hammer append() from many threads; the chain must stay linear.
+
+    Without serialization two appends can read the same prev_hash and both
+    commit, producing two entries with an identical prev_hash (a fork).
+    verify_chain() then fails on the second sibling. With the append lock the
+    chain stays a single linked list regardless of interleaving.
+    """
+    import threading
+
+    log = AuditLog(tmp_path / "audit.db")
+    n_threads = 8
+    appends_per_thread = 25
+    barrier = threading.Barrier(n_threads)
+    errors: list[BaseException] = []
+
+    def hammer() -> None:
+        try:
+            barrier.wait()
+            for _ in range(appends_per_thread):
+                log.append(event_type="channel.created", channel_id="ch-conc")
+        except BaseException as exc:  # noqa: BLE001 — collect for the assert
+            errors.append(exc)
+
+    threads = [threading.Thread(target=hammer) for _ in range(n_threads)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert not errors, f"append() raised under concurrency: {errors[:3]}"
+
+    entries = log.query(channel_id="ch-conc")
+    assert len(entries) == n_threads * appends_per_thread
+
+    # No two entries may share a prev_hash (that is a fork).
+    prev_hashes = [e.prev_hash for e in entries]
+    assert len(prev_hashes) == len(set(prev_hashes)), (
+        "audit chain forked: multiple entries share a prev_hash"
+    )
+
+    # Prove the entries form ONE linked list without relying on walk order:
+    # exactly one chain head, and every other entry's prev_hash points at an
+    # existing entry_hash (with prev_hash uniqueness above, that is a single
+    # unbranched chain). verify_chain()'s ordered walk is covered separately
+    # (it must walk by rowid, the true append order; see MED 8 tests).
+    heads = [e for e in entries if e.prev_hash == ""]
+    assert len(heads) == 1, "audit chain must have exactly one head"
+    entry_hashes = {e.entry_hash for e in entries}
+    non_head_prev = {e.prev_hash for e in entries if e.prev_hash != ""}
+    assert non_head_prev <= entry_hashes, (
+        "an entry's prev_hash points at a nonexistent entry (dangling link)"
+    )
