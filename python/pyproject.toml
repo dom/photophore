@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "photophore"
 version = "0.3.1"
-description = "Photophore privacy policy engine — channels, audit log, classifier, shadows, policy."
+description = "Photophore privacy policy engine: channels, audit log, classifier, shadows, policy."
 requires-python = ">=3.11"
 license = { text = "MIT" }
 readme = "README.md"
@@ -25,7 +25,7 @@ classifiers = [
     "Topic :: System :: Distributed Computing",
 ]
 dependencies = [
-    "thermocline>=0.3.1",
+    "thermocline>=0.4.0",
     "blake3>=1.0.8",
     "click>=8.3",
     "keyring>=25.0",
@@ -57,6 +57,9 @@ photophore = "photophore.cli:photophore"
 Homepage = "https://github.com/dom/photophore"
 Repository = "https://github.com/dom/photophore"
 
+[tool.hatch.build]
+exclude = ["**/CHANGE.md"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/photophore"]
 
@@ -66,6 +69,7 @@ include = [
     "README.md",
     "pyproject.toml",
 ]
+exclude = ["**/CHANGE.md"]
 
 [tool.mypy]
 strict = true

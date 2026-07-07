@@ -108,6 +108,7 @@ def _ok_receipt(envelope_id: str = "env-1") -> Any:
         signature_hash="deadbeef" * 8,
         verified_at=datetime.now(timezone.utc),
         key_scheme=KeyScheme.BRINE,
+        verified_identity="pi-forge",
         _token=_RECEIPT_TOKEN,
     )
 
