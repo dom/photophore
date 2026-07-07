@@ -13,7 +13,7 @@ from pathlib import Path
 
 import click
 
-from ..audit import AuditLog
+from ..audit import open_audit_log
 from ..channels import ChannelStore
 from ..core import ChannelId
 from ..policy import author
@@ -59,7 +59,7 @@ def preview(ctx: click.Context, channel_id: str, task_path: Path) -> None:
     """
     audit_db = ctx.obj["audit_db"]
     channels_db = ctx.obj["channels_db"]
-    audit_log = AuditLog(audit_db)
+    audit_log = open_audit_log(audit_db)
     store = ChannelStore(channels_db, audit_log)
 
     try:
