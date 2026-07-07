@@ -13,16 +13,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from click.testing import CliRunner
 
 from photophore.audit import AuditLog
 from photophore.channels import ChannelStore
-from photophore.channels._store import _channel_to_dict, _upsert_channels_db_raw
-from photophore.channels._keystore import _set_channel
 from photophore.channels._index import add_to_index
+from photophore.channels._keystore import _set_channel
+from photophore.channels._store import _channel_to_dict, _upsert_channels_db_raw
 from photophore.channels._types import Channel
 from photophore.cli import photophore
 from photophore.core import ChannelId, ChannelState
@@ -249,3 +249,100 @@ def test_dispatch_help_lists_options(tmp_path: Path) -> None:
     assert "--channel" in result.output
     assert "--task" in result.output
     assert "--forge-url" in result.output
+
+
+# ---------------------------------------------------------------------------
+# LOW 9: dispatch-time classification must receive the path rules.
+# Enforcement is live in the coordinator; dispatching with rules=None silences
+# the path-rule signal, so classification/warnings were not authoritative.
+
+_RULES_YAML = (
+    "version: 0.1\n"
+    "rules:\n"
+    "  - pattern: \"**/.env*\"\n"
+    "    tier: local\n"
+    "    reason: env-credentials\n"
+    "  - pattern: \"**\"\n"
+    "    tier: local\n"
+    "    reason: default\n"
+)
+
+
+def _invoke_dispatch(tmp_path: Path, extra_args: list[str]) -> tuple[Any, Any]:
+    """Invoke `photophore dispatch` with dispatch_async mocked; return (result, mock)."""
+    _seed_channel(tmp_path, "chan-1")
+    draft = _write_draft(tmp_path)
+    runner = CliRunner()
+    mock = AsyncMock(return_value=_ok_outcome())
+    with patch("photophore.cli.dispatch_cmds.dispatch_async", mock):
+        result = runner.invoke(
+            photophore,
+            ["--data-dir", str(tmp_path),
+             "dispatch",
+             "--channel", "chan-1",
+             "--task", str(draft),
+             "--forge-url", "http://localhost:5000/task",
+             *extra_args],
+            catch_exceptions=False,
+        )
+    return result, mock
+
+
+def test_dispatch_rules_flag_passes_loaded_rules(
+    tmp_path: Path, in_memory_keyring: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--rules <file> loads the path rules and hands them to dispatch_async."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "no-config"))
+    rules_file = tmp_path / "rules.yaml"
+    rules_file.write_text(_RULES_YAML)
+
+    result, mock = _invoke_dispatch(tmp_path, ["--rules", str(rules_file)])
+
+    assert result.exit_code == 0, f"output={result.output!r}"
+    rules = mock.call_args.kwargs["rules"]
+    assert rules is not None, "dispatch_async must receive the loaded path rules"
+    matched = rules.match("/x/.env")
+    assert matched is not None and matched.reason == "env-credentials"
+
+
+def test_dispatch_loads_default_rules_location(
+    tmp_path: Path, in_memory_keyring: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without --rules, the D-09 default rules location is loaded when present."""
+    config_home = tmp_path / "config"
+    (config_home / "photophore").mkdir(parents=True)
+    (config_home / "photophore" / "rules.yaml").write_text(_RULES_YAML)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_home))
+
+    result, mock = _invoke_dispatch(tmp_path, [])
+
+    assert result.exit_code == 0, f"output={result.output!r}"
+    assert mock.call_args.kwargs["rules"] is not None, (
+        "dispatch must auto-load the default rules file when it exists"
+    )
+
+
+def test_dispatch_without_any_rules_still_dispatches(
+    tmp_path: Path, in_memory_keyring: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No --rules and no default file: dispatch proceeds with rules=None
+    (the classifier still fail-closes to local without path rules)."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "no-config"))
+
+    result, mock = _invoke_dispatch(tmp_path, [])
+
+    assert result.exit_code == 0, f"output={result.output!r}"
+    assert mock.call_args.kwargs["rules"] is None
+
+
+def test_dispatch_malformed_rules_exits_2(
+    tmp_path: Path, in_memory_keyring: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A malformed --rules file is a config error (exit 2), fail closed."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "no-config"))
+    bad = tmp_path / "bad-rules.yaml"
+    bad.write_text("version: 0.1\nrules: 'not-a-list'\n")
+
+    result, _mock = _invoke_dispatch(tmp_path, ["--rules", str(bad)])
+
+    assert result.exit_code == 2, f"output={result.output!r}"

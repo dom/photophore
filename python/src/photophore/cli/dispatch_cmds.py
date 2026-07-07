@@ -4,10 +4,13 @@ Wires the 9-step async dispatch coordinator into a click subcommand:
   - --channel <id>: channel id to dispatch through
   - --task <path>: task envelope draft JSON file
   - --forge-url <url>: forge HTTP endpoint
+  - --rules <path>: path rules for dispatch-time classification (optional;
+    falls back to the D-09 default location when that file exists)
 
 Exit code 6 family on DispatchError:
   - Human mode: single-line "error: dispatch failed (<SUBCODE>) at step <N>: <msg>."
   - --json mode: structured body { error, subcode, stage, message, retryable, ... }
+Exit code 2 on a missing/malformed --rules file (ConfigError, fail closed).
 """
 from __future__ import annotations
 
@@ -21,10 +24,40 @@ import click
 
 from ..audit import open_audit_log
 from ..channels import ChannelStore
+from ..classifier import PathRules, load_rules
 from ..dispatch import DispatchError, dispatch_async
+from ..errors import RulesConfigError
 from ._audit_decorator import audit_cli_invocation
+from ._errors import ConfigError
+from .classify_cmds import _default_rules_path
 
 __all__ = ["dispatch_command"]
+
+
+def _resolve_optional_rules(rules_arg: str | None) -> PathRules | None:
+    """Resolve path rules for dispatch-time classification (LOW 9).
+
+    Enforcement runs inside the dispatch coordinator, so classification (and
+    the warnings it emits) is only authoritative when the coordinator sees
+    the same path rules the classifier CLI uses.
+
+    - ``--rules <path>``: must load; missing or malformed is a ConfigError
+      (exit 2, fail closed).
+    - No flag: the D-09 default location is loaded when the file exists
+      (malformed default is also a ConfigError).
+    - No flag and no default file: returns None; the classifier still
+      fail-closes to local without path rules.
+    """
+    if rules_arg is not None:
+        path = Path(rules_arg)
+    else:
+        path = _default_rules_path()
+        if not path.exists():
+            return None
+    try:
+        return load_rules(path)
+    except RulesConfigError as exc:
+        raise ConfigError(str(exc)) from exc
 
 
 @click.command("dispatch")
@@ -42,14 +75,21 @@ __all__ = ["dispatch_command"]
     "--forge-url", "forge_url", required=True,
     help="HTTP URL of the target forge.",
 )
+@click.option(
+    "--rules", "rules_arg", default=None,
+    help="Path to rules.yaml for dispatch-time classification "
+         "(overrides the default location).",
+)
 @click.pass_context
 def dispatch_command(
-    ctx: click.Context, channel_id: str, task_path: Path, forge_url: str
+    ctx: click.Context, channel_id: str, task_path: Path, forge_url: str,
+    rules_arg: str | None,
 ) -> None:
     """Dispatch a task envelope through the full 9-step privacy flow (CLI-03)."""
     output_json = bool(ctx.obj.get("json", False))
     audit_db = ctx.obj["audit_db"]
     channels_db = ctx.obj["channels_db"]
+    rules = _resolve_optional_rules(rules_arg)
     draft: dict[str, Any] = json.loads(task_path.read_text())
 
     audit_log = open_audit_log(audit_db)
@@ -71,6 +111,7 @@ def dispatch_command(
                 identity_provider=provider,
                 verifier=verifier,
                 forge_url=forge_url,
+                rules=rules,
             )
         )
     except DispatchError as exc:
