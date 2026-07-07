@@ -4,9 +4,9 @@
 the policy-engine role: zero-trust classification, dispatch-time shadow generation,
 result-policy authoring, and an append-only cryptographically chained audit log.
 
-**Version:** 0.3.1 (implements Photophore spec v0.3.0+)  
+**Version:** 0.4.0 (implements Photophore spec v0.4.0)  
 **License:** MIT  
-**Depends on:** thermocline>=0.3.1
+**Depends on:** thermocline>=0.4.0
 
 ## Install
 
@@ -14,7 +14,7 @@ result-policy authoring, and an append-only cryptographically chained audit log.
 pip install -e ".[dev]"  # development install
 ```
 
-Requires Python 3.11+ and thermocline>=0.3.1.
+Requires Python 3.11+ and thermocline>=0.4.0.
 
 ## Quickstart
 
@@ -49,5 +49,5 @@ These three stores are NEVER co-located (AT-A5 structural defense).
 
 ## Links
 
-- Spec: `../README.md` (Photophore v0.3.0-draft)
+- Spec: `../README.md` (Photophore v0.4.0)
 - Thermocline suite: https://github.com/dom/thermocline

@@ -155,7 +155,7 @@ def test_concurrent_appends_do_not_fork_chain(tmp_path) -> None:
             barrier.wait()
             for _ in range(appends_per_thread):
                 log.append(event_type="channel.created", channel_id="ch-conc")
-        except BaseException as exc:  # noqa: BLE001 — collect for the assert
+        except BaseException as exc:  # noqa: BLE001 collect for the assert
             errors.append(exc)
 
     threads = [threading.Thread(target=hammer) for _ in range(n_threads)]
