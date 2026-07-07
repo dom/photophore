@@ -108,6 +108,36 @@ class TestCompareResultViolation:
         }
         assert compare_result_against_policy(violating_result, policy) is False
 
+    def test_tier1_violation_unknown_persisted_field_fails_closed(self) -> None:
+        """tier-1: persistence is an ALLOW-LIST of shadow-reference field names.
+
+        The old name-blacklist (content, raw_output) let a forge persist any
+        field it simply named differently (e.g. "secret_dump"). Unknown field
+        names must fail closed (MED 6)."""
+        channel = _make_channel("tier-1")
+        draft = _load_draft("task-draft.json")
+        policy = author(channel, draft)
+
+        violating_result = {
+            "persisted_fields": ["secret_dump"],  # not a permitted shadow-ref field
+            "returned_fields": ["shadow_refs"],
+        }
+        assert compare_result_against_policy(violating_result, policy) is False, (
+            "tier-1 must reject persisted field names outside the shadow-ref allow-list"
+        )
+
+    def test_tier1_compliant_persisting_shadow_refs(self) -> None:
+        """tier-1: persisting the permitted shadow-reference field is compliant."""
+        channel = _make_channel("tier-1")
+        draft = _load_draft("task-draft.json")
+        policy = author(channel, draft)
+
+        result = {
+            "persisted_fields": ["shadow_refs"],
+            "returned_fields": ["shadow_refs"],
+        }
+        assert compare_result_against_policy(result, policy) is True
+
     def test_tier1_compliant(self) -> None:
         """tier-1: shadow_refs returned only, nothing persisted = compliant."""
         channel = _make_channel("tier-1")
@@ -121,13 +151,13 @@ class TestCompareResultViolation:
         assert compare_result_against_policy(compliant_result, policy) is True
 
     def test_tier2_compliant_any_persisted_fields(self) -> None:
-        """The v0.1 tier-2 template is permissive: persist_to_shared=[];
+        """The v0.1 tier-2 template is permissive: persist_to_shared=["*"];
         any forge-declared persisted fields are allowed."""
         channel = _make_channel("tier-2")
         draft = _load_draft("task-draft.json")
         policy = author(channel, draft)
-        # tier-2 v0.1: empty allow-list = permissive.
-        assert policy.persist_to_shared == []
+        # tier-2 v0.1: explicit wildcard = permissive.
+        assert policy.persist_to_shared == ["*"]
 
         # Both arbitrary field names and the legacy "public_outputs" placeholder
         # are compliant; the policy declines to enumerate at this tier.

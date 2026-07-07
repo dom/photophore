@@ -167,7 +167,7 @@ class TestPolicyPreviewJsonMode:
         )
         assert result.exit_code == 0, f"preview failed: {result.output}"
         data = json.loads(result.output)
-        assert data["authored_policy"]["persist_to_shared"] == []
+        assert data["authored_policy"]["persist_to_shared"] == ["*"]
         assert data["authored_policy"]["return_only"] == ["*"]
         assert data["authored_policy"]["strip_before_persist"] == []
 

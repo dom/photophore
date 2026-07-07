@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from photophore.channels import Channel, ChannelStore
+from photophore.channels import Channel
 from photophore.core import ChannelId, ChannelState
 from photophore.policy import ResultPolicy, author
 
@@ -69,29 +69,27 @@ class TestAuthorTier1:
         policy = author(channel, draft)
         assert "content" in policy.strip_before_persist or "raw_output" in policy.strip_before_persist
 
-    def test_tier1_persist_to_shared_empty(self) -> None:
+    def test_tier1_persist_allow_list_is_shadow_refs_only(self) -> None:
+        """tier-1 persistence is an allow-list of shadow-reference field names
+        (MED 6); unknown field names fail closed in compare()."""
         channel = _make_channel("tier-1")
         draft = _load_draft("task-draft.json")
         policy = author(channel, draft)
-        assert policy.persist_to_shared == []
+        assert policy.persist_to_shared == ["shadow_refs"]
 
 
 class TestAuthorTier2:
     def test_tier2_persist_to_shared_is_permissive(self) -> None:
-        """Tier-2 v0.1 template: empty persist_to_shared (no field-name restriction).
-
-        An earlier draft surfaced ``["public_outputs"]`` as a placeholder
-        allow-list. Combined with the v0.1 derivation rule (persisted_fields
-        = outputs.keys when forge omits the explicit field), this caused
-        tier-2 happy-path dispatches against real forges (whose output keys
-        aren't "public_outputs") to falsely trip POLICY-03. Empty lists here
-        mean "no allow-list rule applies".
+        """Tier-2 v0.1 template: unrestricted persistence via an EXPLICIT "*"
+        wildcard. Empty allow-lists mean "persist nothing" (fail closed), so
+        tier-2 permissiveness must be a visible authored choice rather than a
+        falsy-list accident.
         """
         channel = _make_channel("tier-2")
         draft = _load_draft("task-draft.json")
         policy = author(channel, draft)
-        assert policy.persist_to_shared == [], (
-            "tier-2 v0.1 template should be permissive (no field-name allow-list)"
+        assert policy.persist_to_shared == ["*"], (
+            "tier-2 v0.1 template should be permissive via the explicit wildcard"
         )
 
     def test_tier2_strip_before_persist_empty(self) -> None:

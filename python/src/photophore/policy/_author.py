@@ -31,8 +31,12 @@ _CEILING_TO_POLICY_TEMPLATE: dict[str, dict[str, list[str]]] = {
         "strip_before_persist": ["*"],
     },
     "tier-1": {
-        # Shadows only cross. Return shadow references; strip raw content.
-        "persist_to_shared": [],
+        # Shadows only cross. Only the permitted shadow-reference field name
+        # may persist or return; every other field name fails closed. The
+        # strip list is retained as redundant defense in depth (the old
+        # name-blacklist alone let a forge persist any field it simply named
+        # differently, e.g. "secret_dump").
+        "persist_to_shared": ["shadow_refs"],
         "return_only": ["shadow_refs"],
         "strip_before_persist": ["content", "raw_output"],
     },
@@ -53,7 +57,7 @@ _CEILING_TO_POLICY_TEMPLATE: dict[str, dict[str, list[str]]] = {
         # happy-path dispatches against real forges (pi-forge
         # outputs={"pi", "digits_computed", "algorithm"}; describe-forge
         # outputs={"descriptions", "note"}) to falsely trip POLICY-03.
-        "persist_to_shared": [],
+        "persist_to_shared": ["*"],
         "return_only": ["*"],
         "strip_before_persist": [],
     },
@@ -124,8 +128,10 @@ def compare_result_against_policy(
         return NOTHING (fail closed); tier-0 authors return_only=[] with exactly that
         meaning. A "*" entry in the allowed return set means returns are unrestricted
         (tier-2 opts in explicitly).
-      - If ``persist_to_shared`` is non-empty, every field in ``persisted_fields`` must be
-        in the ``persist_to_shared`` list.
+      - ``persisted_fields`` must ALWAYS be a subset of ``persist_to_shared`` (an
+        allow-list of field names, NOT a blacklist). An EMPTY allow-list means the
+        forge may persist NOTHING (fail closed); a "*" entry means persistence is
+        unrestricted (tier-2 opts in explicitly).
 
     Returns:
         True  — the result respects the authored policy.
@@ -155,11 +161,13 @@ def compare_result_against_policy(
     if "*" not in allowed_return and returned_fields - allowed_return:
         return False  # returned a field outside the allowed set (or set is empty)
 
-    # Rule: if persist_to_shared is set, persisted_fields must be a subset.
-    if authored_policy.persist_to_shared:
-        allowed_persist = set(authored_policy.persist_to_shared)
-        if persisted_fields - allowed_persist:
-            return False  # persisted a field outside the allowed list
+    # Rule: persisted_fields must ALWAYS be a subset of the persist allow-list.
+    # An empty allow-list means "persist nothing" (fail closed, MED 6); a "*"
+    # entry means unrestricted (tier-2 opts in explicitly). This is an
+    # allow-list, not a name-blacklist: unknown field names are rejected.
+    allowed_persist = set(authored_policy.persist_to_shared)
+    if "*" not in allowed_persist and persisted_fields - allowed_persist:
+        return False  # persisted a field outside the allow-list (or list is empty)
 
     return True
 
