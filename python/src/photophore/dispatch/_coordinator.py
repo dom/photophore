@@ -414,32 +414,35 @@ async def dispatch_async(
             task_draft.get("issuer")
             or channel.local_node
         )
-        # The wire contract (FORGE-01):
-        # 1. Pre-fill ALL dispatch_signature fields EXCEPT the sig payload
-        #    (``sig`` / ``bytes_hex``). Both the sovereign and the forge
-        #    canonicalize an envelope whose dispatch_signature block has the
-        #    sig fields ABSENT.
-        # 2. Sign the canonical bytes of that pre-filled envelope.
-        # 3. Attach the sig under ``bytes_hex`` (v0.1 wire) — the forge
-        #    deep-copies and pops ``sig``+``bytes_hex`` on its verify side.
+        # The wire contract (SP-3.3, thermocline 0.4.0):
+        # 1. Pre-fill ALL non-``sig`` dispatch_signature fields, including
+        #    ``node_id`` (the signer identity the verifier binds against).
+        # 2. Set ``sig`` to the EMPTY STRING and sign the canonical bytes of
+        #    that pre-filled envelope (SP-3.3-01: the verifier resets
+        #    ``sig`` to "" before canonicalizing, so both sides cover the
+        #    same bytes).
+        # 3. Place the hex signature into ``sig`` on the wire. The legacy
+        #    ``bytes_hex`` field is gone; forges verify via
+        #    thermocline.verify_envelope.
         signing_input = dict(task_draft)
         # The ENFORCED context is what gets signed and transmitted. The
         # caller's draft (with any raw tier-0/tier-1 content) is never
         # signed; enforcement in steps 2-3 is authoritative.
         signing_input["context"] = enforced_context
         sig_block_for_sign = dict(signing_input.get("dispatch_signature") or {})
-        sig_block_for_sign["scheme"] = "brine"
         sig_block_for_sign["key_scheme"] = "brine"
-        sig_block_for_sign.setdefault("signer_identity", signer_identity)
-        # Remove any pre-existing sig material; the signer MUST NOT sign
-        # over a partially-filled sig field.
-        sig_block_for_sign.pop("sig", None)
-        sig_block_for_sign.pop("bytes_hex", None)
+        # node_id binding is authoritative: the issuer signs, so the block's
+        # node_id IS the signer identity (any caller-supplied mismatch would
+        # fail verification on the forge side; overwrite it here).
+        sig_block_for_sign["node_id"] = signer_identity
+        sig_block_for_sign.pop("scheme", None)  # legacy duplicate of key_scheme
+        sig_block_for_sign.pop("bytes_hex", None)  # legacy sig field
+        sig_block_for_sign["sig"] = ""  # SP-3.3-01 signing placeholder
         signing_input["dispatch_signature"] = sig_block_for_sign
 
         # canonicalize() is called here to materialize the canonical bytes that
         # WILL be signed by BrineProvider (which itself canonicalizes internally).
-        # The double call is intentional — this module's signing-path use of
+        # The double call is intentional: this module's signing-path use of
         # canonicalize is the DISP-04-visible call that the test spies on, and
         # the BrineProvider's internal call is the on-the-wire signing input
         # contract. Both produce the same bytes (RFC 8785 is deterministic).
@@ -457,13 +460,13 @@ async def dispatch_async(
             audit_entry_hash=pre_audit_hash,
         ) from exc
 
-    # Attach the signature to the outgoing envelope (the forge expects it
-    # under dispatch_signature.bytes_hex per the spec wire shape; the
-    # forge's verify path deep-copies and pops sig+bytes_hex before
-    # canonicalizing, which recovers the exact bytes signed above).
+    # Attach the signature to the outgoing envelope: SP-3.3-03 places the
+    # hex signature into ``dispatch_signature.sig``. The forge's verify path
+    # (thermocline.verify_envelope) resets ``sig`` to "" before
+    # canonicalizing, which recovers the exact bytes signed above.
     signed_envelope = dict(signing_input)
     sig_block_signed = dict(sig_block_for_sign)
-    sig_block_signed["bytes_hex"] = signature.bytes_.hex()
+    sig_block_signed["sig"] = signature.bytes_.hex()
     signed_envelope["dispatch_signature"] = sig_block_signed
 
     # ---- Step 7: transport (DISP-05 single network call) ---------------------
