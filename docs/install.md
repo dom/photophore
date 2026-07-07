@@ -65,7 +65,7 @@ should walk through the prompts manually for verification.
 
 If `python-keyring` cannot reach the platform keystore, Photophore raises
 `KeystoreUnavailableError` at startup and refuses to operate (no insecure
-fallback — IDENT-05).
+fallback, per IDENT-05).
 
 ## 5. Known Limitations (v0.1)
 
@@ -80,6 +80,6 @@ Linux + Windows ops paths are documented best-effort. CI tests cover
 
 ## Next steps
 
-- [Operations](ops.md) — audit query/export/verify; channel management.
+- [Operations](ops.md): audit query/export/verify; channel management.
 - [Photophore ADRs](adr/index.md).
 - [Suite quickstart](../../thermocline/docs/quickstart.md).

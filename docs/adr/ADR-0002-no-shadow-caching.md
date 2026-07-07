@@ -5,7 +5,7 @@
 ## Context
 
 Shadows are tier-1 abstractions generated at dispatch time. Their identifiers
-(`shadow_id`) MUST be unique per dispatch — if they were not, an observer of
+(`shadow_id`) MUST be unique per dispatch. If they were not, an observer of
 the wire traffic could correlate multiple dispatches of the same source content,
 defeating the privacy tier. SHADOW-06 mandates the uniqueness invariant.
 
@@ -25,13 +25,13 @@ invariant under N=200 generation cycles.
 ## Consequences
 
 - ✓ AT-A2 (shadow inference via shadow_id correlation) is structurally prevented.
-- ✓ The abstraction string itself MAY repeat (acceptable — it's the visible
+- ✓ The abstraction string itself MAY repeat (acceptable, it's the visible
   abstraction); only the `shadow_id` MUST differ.
 - ✗ Regenerating identical abstractions wastes minor CPU (acceptable cost for
   the privacy guarantee).
 - ✗ Distributed coordination is harder: shadow generators in two processes
   must coordinate on uniqueness only via `os.urandom` collision probability
-  (acceptable — birthday-paradox math gives 50% collision at ~2^64 shadows).
+  (acceptable, birthday-paradox math gives 50% collision at ~2^64 shadows).
 
 ## References
 

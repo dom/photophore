@@ -8,7 +8,7 @@ The Photophore trust store records channel state (remote node identity, trust
 ceiling, key scheme). The audit log records every operation that produced or
 modified that state. If both were backed by the same storage, a tamper of the
 audit log could silently rewrite history without detection by the trust store
-(and vice versa). The third store — the IdentityProvider — must also be
+(and vice versa). The third store, the IdentityProvider, must also be
 independent so that key material lives nowhere except the platform secure
 keystore.
 

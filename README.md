@@ -3,7 +3,7 @@
 ### A Zero-Trust Context Membrane and Shadow Protocol for Distributed AI Nodes
 
 **Version:** 0.4.0
-**Status:** RFC — Pre-release, seeking feedback
+**Status:** RFC (pre-release, seeking feedback)
 **License:** MIT
 **Depends on:** Thermocline 0.4.0+
 
@@ -16,7 +16,7 @@ should cross the boundary, and what should not?
 
 Current systems answer this badly. They either move everything (no boundary) or
 nothing (no utility). The few that attempt selective sharing do so at the wrong
-level — filtering individual files or fields rather than reasoning about the
+level, filtering individual files or fields rather than reasoning about the
 relationship between the nodes involved.
 
 The result is a false choice: full exposure or full isolation. Neither is how trust
@@ -24,7 +24,7 @@ actually works between humans.
 
 Photophore offers a third model: **calibrated revelation.** The originating node
 decides, based on its relationship with the receiving node, what the receiver needs
-to know — and reveals exactly that, and nothing else.
+to know. It reveals exactly that, and nothing else.
 
 ---
 
@@ -43,7 +43,7 @@ Photophore is a **zero-trust context membrane** that runs on the originating nod
 - Delegates signing to the identity provider (see Thermocline Identity Provider Interface)
 - Verifies incoming result signatures from receiving nodes
 - Maintains an append-only, cryptographically chained audit log of all boundary
-  crossings — first-class infrastructure, co-equal with the channel store
+  crossings (first-class infrastructure, co-equal with the channel store)
 - Enforces a zero-trust default: everything is opaque until trust is explicitly granted
 
 Photophore does **not**:
@@ -58,8 +58,8 @@ Photophore does **not**:
 
 ## Zero Trust as Foundation
 
-The default state of every piece of content in Photophore is `local` — opaque,
-locked, not eligible for transmission. This is not a configuration option. It is
+The default state of every piece of content in Photophore is `local` (opaque,
+locked, not eligible for transmission). This is not a configuration option. It is
 the foundational assumption of the system.
 
 Transmission is not the default. It is the exception, earned by explicit trust
@@ -106,7 +106,7 @@ A channel has:
 - A local node identity (the Photophore node)
 - A remote node identity (the receiver)
 - A trust ceiling (the highest tier permitted to cross this channel)
-- A key scheme (how envelopes on this channel are signed — declared at creation, immutable)
+- A key scheme (how envelopes on this channel are signed, declared at creation, immutable)
 - A creation timestamp and creator identity
 - An optional description
 
@@ -133,7 +133,7 @@ The system may suggest; only the user may decide.
 Every content block has a privacy tier, assigned by the classification engine in
 strict priority order. A higher-priority signal always wins.
 
-**Priority 1 — Explicit Tag**
+**Priority 1: Explicit Tag**
 A tag set directly on the content by the user or a trusted agent at creation time.
 The highest-trust signal: a deliberate human decision.
 
@@ -143,7 +143,7 @@ The highest-trust signal: a deliberate human decision.
 @photophore:public   — crosses in full
 ```
 
-**Priority 2 — Path Rule**
+**Priority 2: Path Rule**
 A standing rule assigning a default tier to all content matching a path pattern.
 
 ```yaml
@@ -161,9 +161,9 @@ path_rules:
 The catch-all rule is mandatory and must assign `local`. There is no implicit
 permissive fallback.
 
-**Priority 3 — Classifier**
+**Priority 3: Classifier**
 Last-resort inference about what is demonstrably safe to reveal. The classifier's
-job is not to find what is private — everything is private by default. Its job is
+job is not to find what is private. Everything is private by default. Its job is
 to find what is *demonstrably safe to reveal*, which is a harder and more
 conservative test.
 
@@ -181,7 +181,7 @@ auditable answer.
 
 ### Classifier Specification
 
-**v0.1 — Rule-Based (current)**
+**v0.1: Rule-Based (current)**
 
 The v0.1 classifier is deterministic and conservative:
 
@@ -194,7 +194,7 @@ The classifier defaults everything it cannot positively clear to `local`. It wil
 produce false negatives (treating safe content as private). It will not produce
 false positives (treating private content as safe). This asymmetry is intentional.
 
-**v0.2 — Model-Based (planned)**
+**v0.2: Model-Based (planned)**
 
 The model-based classifier runs locally on-device. It never makes network calls.
 
@@ -206,11 +206,11 @@ Requirements:
 - MUST NOT override explicit tags or path rules (Priority 1 and 2 always win)
 - SHOULD be a small model optimized for classification, not generation (target: <4B parameters)
 
-The model-based classifier supplements the rule-based classifier — it does not
+The model-based classifier supplements the rule-based classifier. It does not
 replace it. Both run in sequence: rule-based first (fast, deterministic), then
 model-based for content that rule-based classified as `local` by default (the
 "everything else" catch-all). The model-based classifier can only promote content
-from `local` to `shared` — it cannot promote to `public` (that requires an
+from `local` to `shared`. It cannot promote to `public` (that requires an
 explicit tag or path rule).
 
 ### Shadows
@@ -219,17 +219,17 @@ A shadow is the safe representation of a `shared` (tier-1) content block, genera
 at dispatch time and calibrated to the specific channel and task.
 
 **Shadows are generated at dispatch time, not at write time.** The same content may
-produce different shadows for different channels. Shadows are ephemeral — they exist
+produce different shadows for different channels. Shadows are ephemeral. They exist
 to cross a boundary, not to be stored. No shadow corpus accumulates that could
 itself become a privacy liability.
 
 A shadow contains:
 
-- `shadow_id` — opaque, locally meaningful, not reversible by the receiver
-- `content_type` — type hint (`document`, `conversation`, `credential`, `file`, etc.)
-- `abstraction` — human-readable description with no identifying detail
-- `relevance` — float (0.0–1.0) indicating pertinence to the current task
-- `tier` — always `1`
+- `shadow_id`: opaque, locally meaningful, not reversible by the receiver
+- `content_type`: type hint (`document`, `conversation`, `credential`, `file`, etc.)
+- `abstraction`: human-readable description with no identifying detail
+- `relevance`: float (0.0–1.0) indicating pertinence to the current task
+- `tier`: always `1`
 
 A shadow never contains file contents, names, identifiers, locations, or anything
 that could reconstruct the original.
@@ -270,7 +270,7 @@ they are identical for meaningfully different content, the shadow is too generic
 and fails.
 
 The irreversibility test is the hard constraint. The relevance and
-distinguishability tests are quality criteria — shadows that fail them are valid
+distinguishability tests are quality criteria. Shadows that fail them are valid
 but low-quality. A shadow that fails the irreversibility test is a privacy
 violation.
 
@@ -287,7 +287,7 @@ For `task` envelopes, shadow generation is a single operation over the top-level
 `context[]` block at dispatch time.
 
 For `job` envelopes, shadow generation occurs **per step**, during manifest
-authorship on the issuer node — before the job is dispatched. Photophore processes
+authorship on the issuer node, before the job is dispatched. Photophore processes
 each step's `context[]` block independently.
 
 > **Status (0.4.0): UNIMPLEMENTED.** Job envelopes, manifest authorship, and
@@ -335,7 +335,7 @@ it during the manifest authorship sequence (step 4 above), based on:
 > storage, decay, or threshold action ships in the 0.4.0 implementation;
 > nothing below is enforced at runtime today.
 
-The trust score is a living signal derived from the audit log — not a static
+The trust score is a living signal derived from the audit log, not a static
 configuration. It answers: *how well is this channel performing against its
 declared trust relationship?*
 
@@ -357,7 +357,7 @@ trust_score = Σ(signal_i × weight_i) → [0.0, 1.0]
 ```
 
 The score is recalculated on every audit log entry. It is not smoothed or averaged
-over a window — it reflects the full history of the channel.
+over a window. It reflects the full history of the channel.
 
 ### Decay Function
 
@@ -385,14 +385,14 @@ co-equal with the channel store and the trust score.
 
 ### Properties
 
-- **Append-only** — entries are never modified or deleted, not even by the node owner
-- **Cryptographically chained** — each entry hashes the previous, forming an
+- **Append-only.** Entries are never modified or deleted, not even by the node owner.
+- **Cryptographically chained.** Each entry hashes the previous, forming an
   unbroken chain. Tampering with any entry invalidates all subsequent entries.
-- **Immutable by design** — there is no deletion API. To "clear" a log, archive it
+- **Immutable by design.** There is no deletion API. To "clear" a log, archive it
   and start a new chain. The archive remains.
-- **Queryable** — searchable by channel, node, tier, date range, shadow ID, envelope
+- **Queryable.** Searchable by channel, node, tier, date range, shadow ID, envelope
   ID, or receipt status.
-- **Feeds the trust score** — every verified receipt is a data point.
+- **Feeds the trust score.** Every verified receipt is a data point.
 
 ### What Each Entry Records
 
@@ -413,25 +413,25 @@ For `job` envelopes, additionally:
 - Job ID
 - Per-step shadow IDs generated and their abstractions
 - Per-step classification reasons
-- Halt code, if applicable (no content — only the code)
+- Halt code, if applicable (no content, only the code)
 - Steps declared vs. steps executed (from job result provenance)
 
 ### The Three-Ring Storage Model
 
 Local storage and blockchain are not competing options. They are the same audit log
-at different scopes — three concentric rings of the same record.
+at different scopes, three concentric rings of the same record.
 
-**Ring 1 — Local (node-sovereign)**
+**Ring 1: Local (node-sovereign)**
 SQLite, append-only, cryptographically chained. The default. Always sufficient for
 personal use. Fast, private, zero dependencies.
 
-**Ring 2 — Shared (channel-scoped)**
+**Ring 2: Shared (channel-scoped)**
 Two nodes on the same channel optionally cross-post audit entries to a shared
 ledger. Neither can modify the other's entries. If they diverge, the divergence is
 itself a signal.
 
-**Ring 3 — Public (blockchain-anchored)**
-The hash of a local audit chain anchored to a public blockchain. Never the content —
+**Ring 3: Public (blockchain-anchored)**
+The hash of a local audit chain anchored to a public blockchain. Never the content,
 only the hash. Content stays local. The proof becomes public and permanent.
 
 Arweave is the recommended anchoring target: permanent content-addressed proof
@@ -439,7 +439,7 @@ storage, one-time cost, no ongoing fees.
 
 ### The Privacy Receipt
 
-The dispatch signature and receipt signature together form a **privacy receipt** — a
+The dispatch signature and receipt signature together form a **privacy receipt**, a
 cryptographically verifiable round-trip proof that:
 
 1. The originating node applied its declared policy before dispatch
@@ -465,7 +465,7 @@ the Seamount spec.
 
 | Assumption | Implication |
 |------------|------------|
-| The sovereign node is not compromised | The node owner controls their own machine. If this fails, all guarantees fail — by design. |
+| The sovereign node is not compromised | The node owner controls their own machine. If this fails, all guarantees fail (by design). |
 | The identity provider's keystore is intact | Private keys have not been exfiltrated. Platform keystore compromise is outside Photophore's threat boundary. |
 | The user's tier assignments reflect their intent | Explicit tags and path rules are authoritative. The user is the final authority on what is private. |
 | The classifier is conservative | False negatives (private content stays private) are acceptable. False positives (private content classified as safe) are not. |
@@ -509,12 +509,12 @@ shadow patterns across sessions to infer private content. Examples:
 - Content_type hints are deliberately coarse (document, not "financial report")
 *Residual:* Statistical inference from metadata patterns is theoretically possible
 with sufficient dispatch volume. This is the fundamental tradeoff of the shadow
-primitive — conveying any relevance signal necessarily leaks some information
+primitive. Conveying any relevance signal necessarily leaks some information
 about the existence of private context. The mitigation is volume-based: vary
 abstractions, rotate shadow IDs, use coarse content types.
 
 **AT-A3: Classifier Evasion**
-*Attack:* Content is crafted to bypass the classifier — structured to avoid
+*Attack:* Content is crafted to bypass the classifier, structured to avoid
 credential patterns, PII patterns, and sensitive file type detection, causing
 the classifier to assign `shared` or `public` to content that should be `local`.
 *Mitigation:*
@@ -540,7 +540,7 @@ independent of transport. An attacker who intercepts an envelope sees only
 public content and shadows (never tier-0 content). Shadows are designed to
 resist reconstruction.
 *Residual:* A MITM who breaks transport encryption sees the shadow abstractions
-and public content. This is bounded by the trust ceiling — on a tier-1 channel,
+and public content. This is bounded by the trust ceiling. On a tier-1 channel,
 the attacker sees only shadows and metadata. On a tier-2 channel, public content
 is visible by design.
 
@@ -552,7 +552,7 @@ add unauthorized channels, or remove suspension records.
   Credential Manager)
 - On macOS with Apple Silicon, modification requires biometric or password
   authentication via Secure Enclave
-- The trust store maintains an append-only modification log — changes are recorded
+- The trust store maintains an append-only modification log. Changes are recorded
   and cannot be silently overwritten
 - The audit log independently records all dispatches; a discrepancy between trust
   store configuration and audit log dispatch patterns is detectable
@@ -582,14 +582,14 @@ the threat boundary (as in AT-A5). An attacker who compromises the sovereign
 node can also append new, well-formed entries (a legitimate operation).
 Independent Ring 2/Ring 3 verification remains future work.
 
-### Residual Risks — Accepted by Design
+### Residual Risks: Accepted by Design
 
 **Sovereign node compromise is terminal.** This is the cost of not trusting a
 third party. The audit log, key rotation, and channel suspension mechanisms bound
 the damage window but cannot prevent it.
 
 **Shadow metadata leaks existence.** Every shadow reveals that relevant private
-context exists. This is inherent to the design — a system that reveals nothing
+context exists. This is inherent to the design. A system that reveals nothing
 cannot help a forge reason about private context.
 
 **Human trust decisions may be wrong.** A user who sets a trust ceiling too high
@@ -612,18 +612,18 @@ is small, sensitive, and access-controlled.
 - Stored locally, never synced to any remote node
 - Backed by the platform secure keystore (see Thermocline Identity Provider Interface
   for platform-specific recommendations)
-- Append-only modification log — changes are recorded, never silently overwritten
+- Append-only modification log. Changes are recorded, never silently overwritten
 - No remote access path exists by design
 
 ### Audit Log Storage
 
-The audit log is append-only, potentially large, and queryable — the right profile
-for SQLite, not a keychain.
+The audit log is append-only, potentially large, and queryable. This is the right
+profile for SQLite, not a keychain.
 
 - SQLite, local, append-only
-- Cryptographically chained — each entry hashes the previous
+- Cryptographically chained: each entry hashes the previous
 - Queryable by channel, node, tier, date range, shadow ID, envelope ID, receipt status
-- Separate from the trust store — never co-located in the same backing store
+- Separate from the trust store, never co-located in the same backing store
 
 ---
 
@@ -635,10 +635,10 @@ PROPOSED → OPEN → SUSPENDED → CLOSED
               └─────────┘  (re-openable)
 ```
 
-**PROPOSED** — parameters defined locally, remote node not yet notified. No content flows.
-**OPEN** — both nodes have acknowledged the channel. Content flows up to trust ceiling.
-**SUSPENDED** — temporarily closed, pending trust review. No new content flows.
-**CLOSED** — permanently closed. Receipts archived. Channel ID never reused.
+**PROPOSED.** Parameters defined locally, remote node not yet notified. No content flows.
+**OPEN.** Both nodes have acknowledged the channel. Content flows up to trust ceiling.
+**SUSPENDED.** Temporarily closed, pending trust review. No new content flows.
+**CLOSED.** Permanently closed. Receipts archived. Channel ID never reused.
 
 Suspension and closure are always available to either party unilaterally. Trust can
 always be withdrawn.
@@ -685,24 +685,24 @@ The forge operates within it. It cannot escalate permissions.
 
 ## Roadmap
 
-**v0.1** — Channel registry, three-tier classification, rule-based classifier,
+**v0.1:** Channel registry, three-tier classification, rule-based classifier,
 dispatch-time shadow generation, identity provider delegation, privacy receipts,
 append-only cryptographically chained audit log (Ring 1), export interface,
 anchoring hook.
 
-**v0.2** — Per-step shadow generation for job envelopes. Result policy authorship
+**v0.2:** Per-step shadow generation for job envelopes. Result policy authorship
 for job manifests. Ring 2 reconciliation protocol.
 
-**v0.3** — Model-based classifier spec (opt-in, local-only). Shadow quality
+**v0.3:** Model-based classifier spec (opt-in, local-only). Shadow quality
 criteria and abstraction strategies. Trust score algorithm. Threat model.
 
-**v0.4** — Multi-hop channels. Membrane chaining. Ring 3 blockchain adapter
+**v0.4:** Multi-hop channels. Membrane chaining. Ring 3 blockchain adapter
 (chain-agnostic). Arweave reference implementation.
 
-**v0.5** — File-level and task-level granularity within channels. Per-content trust
+**v0.5:** File-level and task-level granularity within channels. Per-content trust
 overrides beyond the explicit tag system.
 
-**v1.0** — Channel negotiation protocol. Two Photophore nodes agreeing on a shared
+**v1.0:** Channel negotiation protocol. Two Photophore nodes agreeing on a shared
 trust level before a channel opens, with cryptographic commitment on both sides.
 
 ---
@@ -757,20 +757,20 @@ See [docs/adr/index.md](docs/adr/index.md) for status + dates.
 - Dependency: Thermocline 0.4.0+
 
 ### 0.3.0
-- Added Threat Model section — six attack surfaces (compromised sovereign node,
+- Added Threat Model section: six attack surfaces (compromised sovereign node,
   shadow inference, classifier evasion, channel MITM, trust store tampering,
   audit log manipulation) with mitigations and residual risk analysis
-- Added Shadow Generation Quality section — abstraction strategies per content type,
+- Added Shadow Generation Quality section: abstraction strategies per content type,
   three quality criteria (irreversibility, relevance preservation, distinguishability),
   shadow ID uniqueness requirement
-- Added Trust Score section — input signals with weights, composite score formula,
+- Added Trust Score section: input signals with weights, composite score formula,
   decay function for inactive channels, threshold table with recommended actions
-- Added Classifier Specification section — v0.1 rule-based (current), v0.2 model-based
-  (planned) with requirements: local-only, opt-in, confidence threshold, can only
-  promote local→shared
-- Replaced direct key management with delegation to Thermocline Identity Provider Interface —
+- Added Classifier Specification section covering v0.1 rule-based (current) and
+  v0.2 model-based (planned), with requirements: local-only, opt-in, confidence
+  threshold, can only promote local→shared
+- Replaced direct key management with delegation to Thermocline Identity Provider Interface.
   Photophore no longer owns key lifecycle, delegates to identity provider role
-- Removed `osaurus` as explicit key scheme reference — identity provider is role-based
+- Removed `osaurus` as explicit key scheme reference. Identity provider is role-based
   per Thermocline 0.3.0 role architecture
 - Moved "The Last Moat" essay, "Relational Technology" section, and naming note to
   Appendix A (non-normative)
@@ -802,7 +802,7 @@ See [docs/adr/index.md](docs/adr/index.md) for status + dates.
 
 ---
 
-## Appendix A — Non-Normative
+## Appendix A: Non-Normative
 
 ### The Last Moat
 
@@ -813,27 +813,27 @@ approaches zero. The abundance of capable systems approaches infinity.
 In a world where anything can be made, what cannot be copied?
 
 The answer is the same as it has always been: **human relationships.** Not the
-products of relationship — those can be generated. The relationship itself. The
+products of relationship. Those can be generated. The relationship itself. The
 history between two people, or two teams, or two nodes that someone deliberately
-chose to trust. The moment of extension — *I give this to you, and not to others* —
+chose to trust. The moment of extension, *I give this to you, and not to others*,
 that no model can perform on your behalf, because it requires you.
 
 This is the only remaining technical moat. Not code. Not data. Not models. The
 deliberate, irreducible, human act of deciding who to trust with the good things
-you make. This principle — that cooperative advantage derives from human
-relationships rather than technical capability alone — will be developed in a
+you make. This principle (that cooperative advantage derives from human
+relationships rather than technical capability alone) will be developed in a
 forthcoming thought leadership publication by Dom Sagolla. A reference will be
 added here when available.
 
 Photophore is built on this premise. It does not try to automate trust. It tries to
-make trust expressible, auditable, and worth having — so that the relationships you
+make trust expressible, auditable, and worth having, so that the relationships you
 build compound over time into something no one can fork.
 
 You can fork this code. You cannot fork what runs on it.
 
 ### Relational Technology
 
-This suite — Thermocline, Photophore, and Seamount — is designed as an expression of
+This suite (Thermocline, Photophore, and Seamount) is designed as an expression of
 Relational Technology, a framework developed by Anna Spisak as part of her doctoral
 research in integral psychology. We reference it here with respect for her ongoing
 work and without attempting to define it in her place. Her publication will speak

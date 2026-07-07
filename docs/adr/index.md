@@ -3,8 +3,8 @@
 Photophore-specific forever-decisions. Cross-reference [thermocline ADRs](../../../thermocline/docs/adr/index.md) for suite-wide decisions.
 
 ## Photophore-specific
-- [ADR-0001: Trust-store separation from audit log](ADR-0001-trust-store-separation-from-audit-log.md) — Accepted, 2026-05-12
-- [ADR-0002: No shadow caching](ADR-0002-no-shadow-caching.md) — Accepted, 2026-05-12
+- [ADR-0001: Trust-store separation from audit log](ADR-0001-trust-store-separation-from-audit-log.md) (Accepted, 2026-05-12)
+- [ADR-0002: No shadow caching](ADR-0002-no-shadow-caching.md) (Accepted, 2026-05-12)
 
 ## Inherited from `thermocline-py`
 - [ADR-0001: Python 3.11 as primary language](../../../thermocline/docs/adr/ADR-0001-python-3-11-as-primary-language.md)

@@ -83,22 +83,22 @@ aligned with the Thermocline 0.4.0 contract (see README inline changelog
 
 ### Implemented
 
-- **CHAN-01..06** — Channel lifecycle, trust store (`python-keyring`), ceiling
+- **CHAN-01..06**: Channel lifecycle, trust store (`python-keyring`), ceiling
   monotonicity (lower unilaterally; raise requires deliberate human act).
-- **AUDIT-01..08** — Append-only SQLite audit log with BLAKE3 chain
+- **AUDIT-01..08**: Append-only SQLite audit log with BLAKE3 chain
   (`algo_version="blake3-v1"`). Query/export/verify CLI subcommands.
-- **CLASS-01..06** — Explicit tag + path rule + rule-based classifier; default
+- **CLASS-01..06**: Explicit tag + path rule + rule-based classifier; default
   every unmatched block to `LOCAL` (tier-0).
-- **SHADOW-01..06** — Per-content-type abstractions; UUIDv4 IDs via
+- **SHADOW-01..06**: Per-content-type abstractions; UUIDv4 IDs via
   `secrets.token_bytes` over `os.urandom`; no caching at any level.
-- **POLICY-01..03** — `result_policy` authoring from channel + envelope draft.
-- **DISP-01..06** — 9-step dispatch coordinator; AST-lint network isolation
+- **POLICY-01..03**: `result_policy` authoring from channel + envelope draft.
+- **DISP-01..06**: 9-step dispatch coordinator; AST-lint network isolation
   forbids non-dispatch HTTP egress from library code.
-- **CLI-01..07** — Full CLI surface: audit (query/export/verify), channel
+- **CLI-01..07**: Full CLI surface: audit (query/export/verify), channel
   (new/list/show/suspend/close/set-ceiling/register-pubkey), classify,
   policy preview, dispatch. CLI-06 audit retrofit + CLI-07 (tier, reason)
   error messages.
-- **CONF-01..04, CONF-06** — Conformance fixture coverage, AT-* surface
+- **CONF-01..04, CONF-06**: Conformance fixture coverage, AT-* surface
   enumeration, property test cadence, CI gates (ruff + mypy --strict +
   pip-audit + AST lints + at_coverage + property_coverage + pytest),
   `Sensitive[T]` + print-lint + SensitiveFilter.
@@ -106,7 +106,7 @@ aligned with the Thermocline 0.4.0 contract (see README inline changelog
 ### Spec dependencies
 
 - Requires **`thermocline-py` 0.3.1** for the SP-3.3-01..03 envelope-signature
-  invariants — see `thermocline/README.md` §"Identity Provider Interface"
+  invariants. See `thermocline/README.md` §"Identity Provider Interface"
   §"Dispatch Signatures" + §"Receipt Signatures" and
   `thermocline/CHANGELOG.md` §[0.3.1]. The dispatch coordinator implements
   the matching pre-fill ordering (`dispatch_signature` non-`sig` fields filled
@@ -126,8 +126,8 @@ aligned with the Thermocline 0.4.0 contract (see README inline changelog
 - Multi-hop channels + Ring 3 anchoring (v0.4)
 - Per-content trust overrides (v0.5)
 - Channel negotiation protocol (v1.0)
-- Chain archival (`photophore audit archive`) — v0.1 ships query/export/verify only
-- Daemon mode — v0.1 is per-invocation only
+- Chain archival (`photophore audit archive`): v0.1 ships query/export/verify only
+- Daemon mode: v0.1 is per-invocation only
 
 ### Known limitations
 

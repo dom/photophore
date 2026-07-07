@@ -41,9 +41,9 @@ print(channel.id, channel.state)  # <uuid> ChannelState.PROPOSED
 ## Architecture
 
 Photophore ships three discrete stores (D-04):
-- **Trust store**: platform keystore via `python-keyring` — channel records (authoritative)
-- **Channel index**: `channels.db` — a derived projection for fast list/show queries
-- **Audit log**: `audit.db` — append-only, cryptographically chained via BLAKE3
+- **Trust store**: platform keystore via `python-keyring`, holding channel records (authoritative)
+- **Channel index**: `channels.db`, a derived projection for fast list/show queries
+- **Audit log**: `audit.db`, append-only, cryptographically chained via BLAKE3
 
 These three stores are NEVER co-located (AT-A5 structural defense).
 
