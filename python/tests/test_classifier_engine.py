@@ -33,23 +33,35 @@ def test_classify_empty_bytes_returns_local_default() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Priority 1: Explicit Tag (CLASS-02) — wins over everything
+# Explicit Tag (CLASS-02, hardened): embedded tags may only LOWER the tier.
+# Tags ride in untrusted content bytes, so they can never raise the base
+# assignment (path rule / classifier / default), only restrict below it.
 
 
-def test_classify_explicit_tag_public(loaded_rules) -> None:
-    """Explicit @photophore:public tag returns (PUBLIC, 'explicit_tag') — Priority 1."""
+def test_classify_explicit_tag_public_cannot_promote() -> None:
+    """@photophore:public cannot raise above the LOCAL base assignment (AT-A3)."""
     result = classify(b"@photophore:public hello", path=None, rules=None)
-    assert result == Classification(tier=Tier.PUBLIC, reason="explicit_tag")
+    assert result == Classification(tier=Tier.LOCAL, reason="classifier:default")
 
 
 def test_classify_explicit_tag_local() -> None:
+    """@photophore:local confirms the LOCAL base tier (lower-or-equal is honored)."""
     result = classify(b"@photophore:local content", path=None, rules=None)
     assert result == Classification(tier=Tier.LOCAL, reason="explicit_tag")
 
 
-def test_classify_explicit_tag_shared() -> None:
+def test_classify_explicit_tag_shared_cannot_promote() -> None:
+    """@photophore:shared cannot raise above the LOCAL base assignment (AT-A3)."""
     result = classify(b"@photophore:shared content", path=None, rules=None)
-    assert result == Classification(tier=Tier.SHARED, reason="explicit_tag")
+    assert result == Classification(tier=Tier.LOCAL, reason="classifier:default")
+
+
+def test_classify_explicit_tag_lowers_shared_path(loaded_rules) -> None:
+    """@photophore:local inside shared-docs content lowers SHARED to LOCAL."""
+    result = classify(
+        b"@photophore:local content", path="docs/api/guide.md", rules=loaded_rules
+    )
+    assert result == Classification(tier=Tier.LOCAL, reason="explicit_tag")
 
 
 # ---------------------------------------------------------------------------

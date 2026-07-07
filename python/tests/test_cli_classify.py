@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 
 import pytest
@@ -96,18 +95,22 @@ def test_classify_single_file_json_tier_local(runner: CliRunner, tmp_file: Path,
 
 
 # ---------------------------------------------------------------------------
-# Single file: explicit-tag wins over path rule (AT-A3 via CLI)
+# Single file: embedded tag cannot promote above the path rule (AT-A3 via CLI)
 
 
-def test_classify_explicit_tag_wins_via_cli(runner: CliRunner, tmp_path: Path, rules_valid: Path) -> None:
-    """@photophore:public in .env file -> tier=public, reason=explicit_tag (CLASS-01 priority via CLI)."""
+def test_classify_embedded_tag_cannot_promote_via_cli(runner: CliRunner, tmp_path: Path, rules_valid: Path) -> None:
+    """@photophore:public in a .env file stays local via the path rule (hardened AT-A3).
+
+    Embedded tags ride in untrusted content bytes; they may only lower the
+    tier, never raise it above the trusted path-rule assignment.
+    """
     env_file = tmp_path / ".env"
     env_file.write_text("DATABASE_URL=postgres://x:y@h @photophore:public")
     result = runner.invoke(photophore, ["--json", "classify", str(env_file), "--rules", str(rules_valid)])
     assert result.exit_code == 0
     doc = json.loads(result.output.strip())
-    assert doc["tier"] == "public"
-    assert doc["reason"] == "explicit_tag"
+    assert doc["tier"] == "local"
+    assert doc["reason"].startswith("path_rule:")
 
 
 def test_classify_env_file_without_tag(runner: CliRunner, tmp_env_file: Path, rules_valid: Path) -> None:
