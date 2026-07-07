@@ -1,4 +1,10 @@
-"""Explicit-tag parser per CLASS-02. Tags @photophore:(local|shared|public)."""
+"""Explicit-tag parser per CLASS-02. Tags @photophore:(local|shared|public).
+
+SECURITY (AT-A3): the tag is parsed from content BYTES, which are untrusted.
+Callers must never let a parsed tag RAISE the tier above the trusted base
+assignment (path rule / classifier / default); it may only lower it. The
+lower-only enforcement lives in classifier._engine.classify().
+"""
 from __future__ import annotations
 
 import re

@@ -1,9 +1,10 @@
-"""Priority-order tests for classify() — pins the CLASS-01 contract.
+"""Priority-order tests for classify(): pins the CLASS-01 contract (hardened).
 
 Also serves as the behavioral wire for the AT-A3 conformance fixture:
-  - AT-A3: explicit tag wins over path rule (intended behavior per CLASS-01).
-  - Without explicit tag, path rule wins over rule-based classifier.
-  - Without explicit tag or path rule match, rule-based classifier fires.
+  - AT-A3 (hardened): an embedded tag may only LOWER the tier, never raise it
+    above the base assignment. Tags live in untrusted content bytes.
+  - Path rule wins over rule-based classifier.
+  - Without a path rule match, rule-based classifier fires.
   - Without any of the above, default_tier() returns LOCAL.
 """
 from __future__ import annotations
@@ -26,19 +27,20 @@ def loaded_rules():
 
 
 # ---------------------------------------------------------------------------
-# AT-A3 behavioral wire: explicit tag wins over path rule (Priority 1 > Priority 2)
+# AT-A3 behavioral wire: embedded tag must NOT win over the path rule
 
 
-def test_at_a3_explicit_tag_wins_over_path_rule(loaded_rules) -> None:
-    """AT-A3: @photophore:public tag in tier-0 content wins over .env path rule.
+def test_at_a3_embedded_tag_does_not_beat_path_rule(loaded_rules) -> None:
+    """AT-A3 (hardened): @photophore:public inside .env content stays LOCAL.
 
-    This is INTENDED behavior per CLASS-01: explicit tags are issuer-authored signals,
-    the highest-priority classification. An attacker who can inject a forged
-    @photophore:public tag has issuer-node access — a different threat (AT-A1).
+    The tag is parsed from content bytes, which are untrusted: anything that
+    can write into the file (email body, downloaded doc, prompt injection)
+    could plant it. The path rule is the trusted, issuer-configured signal,
+    so the tag may not raise the tier above it. Fail closed.
     """
     result = classify(b"@photophore:public secret data", path="/x/.env", rules=loaded_rules)
-    assert result == Classification(tier=Tier.PUBLIC, reason="explicit_tag"), (
-        f"AT-A3: explicit tag must win over path rule; got {result}"
+    assert result == Classification(tier=Tier.LOCAL, reason="path_rule:env-credentials"), (
+        f"AT-A3: embedded tag must NOT promote above the path rule; got {result}"
     )
 
 
@@ -55,10 +57,17 @@ def test_at_a3_without_tag_path_rule_applies(loaded_rules) -> None:
 # Priority transitions: all four branches in order
 
 
-def test_priority_1_wins(loaded_rules) -> None:
-    """Explicit tag beats path rule, classifier, AND default."""
+def test_embedded_tag_never_raises_above_path_rule(loaded_rules) -> None:
+    """@photophore:shared inside a local-path file stays LOCAL (lower-only)."""
     result = classify(b"@photophore:shared text", path="/x/.env", rules=loaded_rules)
-    assert result.tier is Tier.SHARED
+    assert result.tier is Tier.LOCAL
+    assert result.reason == "path_rule:env-credentials"
+
+
+def test_embedded_tag_may_lower_below_path_rule(loaded_rules) -> None:
+    """@photophore:local inside shared-docs content lowers SHARED to LOCAL."""
+    result = classify(b"@photophore:local text", path="docs/api/guide.md", rules=loaded_rules)
+    assert result.tier is Tier.LOCAL
     assert result.reason == "explicit_tag"
 
 
@@ -101,11 +110,12 @@ def test_priority_4_default_fires(loaded_rules) -> None:
     assert result == Classification(tier=Tier.LOCAL, reason="classifier:default")
 
 
-def test_all_four_priorities_verified(loaded_rules) -> None:
-    """Compact verification of all four priority levels in sequence."""
-    # P1: explicit tag
+def test_all_priorities_verified(loaded_rules) -> None:
+    """Compact verification of the hardened priority ladder in sequence."""
+    # Embedded tag cannot promote: base path rule wins over @photophore:public
     r1 = classify(b"@photophore:public data", path="/x/.env", rules=loaded_rules)
-    assert r1.reason == "explicit_tag"
+    assert r1.reason == "path_rule:env-credentials"
+    assert r1.tier is Tier.LOCAL
 
     # P2: path rule (no explicit tag, .env matches env-credentials)
     r2 = classify(b"plain content", path="/x/.env", rules=loaded_rules)
